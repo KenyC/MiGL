@@ -28,8 +28,6 @@ pub fn get_log(id : GLuint, log_kind : LogKind) -> Option<String> {
 				LogKind::LinkLog     => gl::GetProgramiv (id, gl::INFO_LOG_LENGTH, &mut info_log_length),
 			}
 		}
-		println!("info_log_length {:?}", info_log_length);
-		// info_log_length = 50;
 
 		// -- CREATE BUFFER OF CORRECT SIZE
 		// allocate buffer of correct size

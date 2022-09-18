@@ -94,7 +94,7 @@ impl Program {
 			frag_shader,
 			maybe_geom_shader,
 			maybe_texture,
-			mut attributes,
+			attributes,
 		} = builder;
 		let program_id = unsafe {gl::CreateProgram()};
 
@@ -129,11 +129,12 @@ impl Program {
 		// -- Find attribute location
 		let mut attributes_loc = HashMap::new();
 		for attribute in attributes.into_iter() {
-			let mut pos = 0;
 			let uniform_name_c : CString = CString::new(attribute.clone()).unwrap();
-			unsafe {
-				pos = gl::GetAttribLocation(program_id, uniform_name_c.as_ptr().cast());
-			}
+			let pos = unsafe {
+				gl::GetAttribLocation(program_id, uniform_name_c.as_ptr().cast())
+			};
+
+			// let pos = unsafe {pos.assume_init()};
 			if pos == -1 {
 				return Err(GLError::InexistentOrUndeclaredAttribute(attribute.to_string()));
 			}
@@ -243,11 +244,9 @@ impl Program {
 
 		// shouldn't panic if uniform name contains no null bytes
 		let uniform_name_c : CString = CString::new(uniform_name).unwrap();
-		let mut location = -1;
-
-		unsafe {
-			location = gl::GetUniformLocation(self.id.0, uniform_name_c.as_ptr() as *mut gl::types::GLchar);
-		}
+		let location = unsafe {
+			gl::GetUniformLocation(self.id.0, uniform_name_c.as_ptr() as *mut gl::types::GLchar)
+		};
 
 
 		if location == -1 {
@@ -271,10 +270,9 @@ impl Program {
 	{
 		let uniform_name_c : CString = CString::new(name.to_string()).unwrap();
 
-		let mut uniform_index = 0;
-		unsafe {
-			uniform_index = gl::GetUniformBlockIndex(self.id.0, uniform_name_c.as_ptr().cast());
-		}
+		let uniform_index = unsafe {
+			gl::GetUniformBlockIndex(self.id.0, uniform_name_c.as_ptr().cast())
+		};
 
 		if uniform_index == gl::INVALID_INDEX {
 			return Err(GLError::InexistentUniformBuffer(name.to_string()));

@@ -1,6 +1,8 @@
 pub mod shader;
 pub mod texture;
 pub mod log;
+#[cfg(feature = "utils")]
+pub mod utils;
 pub mod attributes;
 pub mod program;
 pub mod uniform;

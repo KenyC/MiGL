@@ -62,6 +62,16 @@ impl<const N: usize> Point<N> {
 		Self(coords)
 	}
 
+	pub fn from(from_coords : &[f32]) -> Self {
+		let mut coords = [0.; N];
+
+		for i in 0 .. N {
+			coords[i] = from_coords[i];
+		}
+
+		Self(coords)
+	}
+
 
 	pub fn dot(&self, other: &Self) -> f32 {
 		self.into_iter()

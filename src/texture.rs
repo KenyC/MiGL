@@ -4,8 +4,8 @@ use crate::GLError;
 
 #[derive(Debug, Clone)]
 pub enum TexAxis {
-	U_AXIS, // horizontal 
-	V_AXIS, // vertical
+	UAxis, // horizontal 
+	VAxis, // vertical
 }
 
 #[derive(Debug, Clone)]
@@ -94,8 +94,8 @@ impl Texture {
 		unsafe {gl::BindTexture(gl::TEXTURE_2D, self.id.0);}
 		for dimension in dimensions {
 			let wrap_axis = match dimension {
-				TexAxis::U_AXIS => gl::TEXTURE_WRAP_S,
-				TexAxis::V_AXIS => gl::TEXTURE_WRAP_T,
+				TexAxis::UAxis => gl::TEXTURE_WRAP_S,
+				TexAxis::VAxis => gl::TEXTURE_WRAP_T,
 			};
 			unsafe {
 				gl::TexParameteri(gl::TEXTURE_2D, wrap_axis, repeat_param);	
