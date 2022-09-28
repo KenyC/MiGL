@@ -67,7 +67,7 @@ pub fn main() {
 	program.bind("normal",   spaceship_buffer.view(field!(normal))).unwrap();
 
 	program.uniform("min_illumination").unwrap().pass(&0.2);
-	program.uniform("max_illumination").unwrap().pass(&0.9);
+	program.uniform("max_illumination").unwrap().pass(&0.5);
 	let light_dir = - V3::new([1.0; 3]);
 	program.uniform("light_direction").unwrap().pass(&light_dir);
 
