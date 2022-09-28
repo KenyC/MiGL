@@ -48,7 +48,7 @@ pub struct VertexNormal {
 pub struct Object {
 	vertices : Vec<V3>,
 	faces : Vec<(usize, usize, usize)>,
-	face_normals : Vec<usize>,
+	face_normals : Vec<(usize, usize, usize)>,
 	normals : Vec<V3>,
 }
 
@@ -66,10 +66,10 @@ impl Object {
 		let Object { vertices, faces, face_normals, normals } = self;
 		let mut to_return = Vec::with_capacity(3 * faces.len());
 
-		for ((v1, v2, v3), face_normal_index) in faces.into_iter().zip(face_normals) {
-			to_return.push(VertexNormal { vertex: vertices[v1], normal: normals[face_normal_index] });
-			to_return.push(VertexNormal { vertex: vertices[v2], normal: normals[face_normal_index] });
-			to_return.push(VertexNormal { vertex: vertices[v3], normal: normals[face_normal_index] });
+		for ((v1, v2, v3), (fn1, fn2, fn3)) in faces.into_iter().zip(face_normals) {
+			to_return.push(VertexNormal { vertex: vertices[v1], normal: normals[fn1] });
+			to_return.push(VertexNormal { vertex: vertices[v2], normal: normals[fn2] });
+			to_return.push(VertexNormal { vertex: vertices[v3], normal: normals[fn3] });
 		}
 
 		to_return
@@ -189,8 +189,7 @@ impl ObjLoader {
 
 
 			object.faces.push((indices[0], indices[1], indices[2],));
-			// Implicitly assuming all normals are the same
-			object.face_normals.push(normal_indices[0]);
+			object.face_normals.push((normal_indices[0], normal_indices[1], normal_indices[2],));
 		}
 
 		Ok(true)
