@@ -324,6 +324,17 @@ impl M44 {
 
 		to_return
 	}
+
+
+	pub fn extract_rotation(&self) -> M33 {
+		let mut to_return : [[f32; 3]; 3] = [[0.0; 3]; 3];
+		for i in 0 .. 3 {
+			for j in 0 .. 3 {
+				to_return[i][j] = self.0[i][j];
+			}
+		}
+		M33::new(to_return)
+	}
 }
 
 impl<const N : usize> Matrix<N> {

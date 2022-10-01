@@ -3,18 +3,19 @@
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec3 normal;
 
-out float intensity;
+out vec3 f_normal;
+out vec4 world_position;
 
-uniform mat4   model_view_projection;
-uniform vec3   light_direction;
-uniform float  min_illumination;
-uniform float  max_illumination;
+uniform mat4 model_view;
+uniform mat4 projection;
+
+
 
 void main()
 {
-    intensity = - dot(normal, light_direction) * max_illumination;
-    if(intensity <= min_illumination) {
-        intensity = min_illumination;
-    }
-    gl_Position = model_view_projection * vec4(position, 1.0);
+    f_normal = normal;
+    world_position = model_view * vec4(position, 1.0);
+
+
+    gl_Position = projection * world_position;
 }

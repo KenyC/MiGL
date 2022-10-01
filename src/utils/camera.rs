@@ -25,16 +25,20 @@ impl CylinderCamera {
 	}
 
 	pub fn matrix(&self) -> M44 {
-		let pos_camera = V3::new([
-			self.radius * self.angle.cos(),
-			self.height_angle * self.radius,
-			self.radius * self.angle.sin(),
-		]);
+		let pos_camera = self.position();
 		M44::look_at(
 			&pos_camera,
 			&self.center,
 			&V3::E_Y,
 		)
+	}
+
+	pub fn position(&self) -> V3 {
+		V3::new([
+			self.radius * self.angle.cos(),
+			self.height_angle * self.radius,
+			self.radius * self.angle.sin(),
+		])
 	}
 
 

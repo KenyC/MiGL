@@ -7,6 +7,7 @@ use migl::utils::load::ObjLoader;
 use migl::math3d::M44;
 use migl::math3d::V3;
 use migl::program::ProgramBuilder;
+use migl::utils::axes::AxesBuilder;
 use migl::shader::Fragment;
 use migl::shader::Shader;
 use migl::shader::Vertex;
@@ -31,7 +32,7 @@ pub fn main() {
 	opengl_attr.set_context_version(3, 3);
 	opengl_attr.set_context_profile(GLProfile::Core);
 
-	let window = video_subsystem.window("Stick people", WIDTH, HEIGHT)
+	let window = video_subsystem.window("Spaceship", WIDTH, HEIGHT)
 		.position_centered()
 		.opengl()
 		.build()
@@ -58,7 +59,8 @@ pub fn main() {
 
 	let spaceship_data = 
 		ObjLoader::new()
-		.load(Path::new("resources/model/starship.obj"))
+		// .load(Path::new("resources/model/starship.obj"))
+		.load(Path::new("resources/model/sphere.obj"))
 		.expect("Can't load object")
 		.into_vertex_normals();
 	let spaceship_buffer = BufferBld::array().data(&spaceship_data).unwrap();
@@ -66,23 +68,36 @@ pub fn main() {
 	program.bind("position", spaceship_buffer.view(field!(vertex))).unwrap();
 	program.bind("normal",   spaceship_buffer.view(field!(normal))).unwrap();
 
-	program.uniform("min_illumination").unwrap().pass(&0.2);
-	program.uniform("max_illumination").unwrap().pass(&0.5);
-	let light_dir = - V3::new([1.0; 3]);
-	program.uniform("light_direction").unwrap().pass(&light_dir);
+	program.uniform("ambient_strength").unwrap().pass(&0.1);
+	program.uniform("specular_strength").unwrap().pass(&0.5);
+	program.uniform("light_strength").unwrap().pass(&0.8);
+	let light_dir_uniform  = program.uniform("light_direction").unwrap();
+	let camera_pos_uniform = program.uniform("camera_pos").unwrap();
 
 
 
-	let mvp_uniform = program.uniform("model_view_projection").unwrap();
-	let model_matrix = M44::rotation(&V3::E_X, -90_f32.to_radians()).dot(&M44::scaling(1.0));
+	let mv_uniform = program.uniform("model_view").unwrap();
+	let p_uniform  = program.uniform("projection").unwrap();
+	let model_matrix    = M44::rotation(&V3::E_X, -90_f32.to_radians()).dot(&M44::scaling(1.0));
+	let model_rotation  = model_matrix.extract_rotation();
 	let projection_matrix = M44::perspective_projection(0.1, 50., 90., 1.);
 
-
+	let axes_builder = AxesBuilder::new().unwrap();
+	let mut axes = axes_builder.axes();
+	axes.set_pos(V3::new([0.0, 2.0, 0.0]));
 	let mut camera = CylinderCamera::new();
+
+	let timer = sdl_context.timer().unwrap();
+	let mut old_time = timer.ticks();
 
 	let mut event_pump = sdl_context.event_pump().unwrap();
 
 	'main: loop {
+		let current_time = timer.ticks();
+		let t  = current_time as f32;
+		let dt = (current_time - old_time) as f32;
+		old_time = current_time;
+
 		'event : for event in event_pump.poll_iter() {
 			match event {
 				Event::Quit {..} |
@@ -97,12 +112,24 @@ pub fn main() {
 
 		gl.clear();
 
-		let view_projection = camera.matrix();
-		let mvp = projection_matrix.dot(&view_projection).dot(&model_matrix);
+		let view_matrix = camera.matrix();
+		let mv_matrix = view_matrix.dot(&model_matrix);
+		let vp_matrix = projection_matrix.dot(&view_matrix);
+		// let p_matrix = ;
 
-		mvp_uniform.pass(&mvp);
+		let light_time = 0.001 * t; 
+		const HEIGHT : f32 = 0.8660254037844386;
+		let width = (1. - HEIGHT).powf(0.5);
+		let light_dir = model_rotation.apply(&(- V3::new([light_time.cos() * width, -HEIGHT, light_time.sin() * width])));
+		light_dir_uniform.pass(&light_dir);
+		mv_uniform.pass(&mv_matrix);
+		p_uniform.pass(&projection_matrix);
+		camera_pos_uniform.pass(&camera.position());
+
 		program.set_current();
 		program.draw_buffer(&spaceship_buffer, program::DrawMode::Tris);
+
+		axes.draw(&vp_matrix);
 
 		window.gl_swap_window();
 	}
