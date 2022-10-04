@@ -70,8 +70,8 @@ impl ProgramBuilder {
 
 }
 
-#[derive(Debug)]
-pub struct AttributePos(gl::types::GLuint);
+#[derive(Debug, Clone, Copy)]
+pub struct AttributePos(pub gl::types::GLuint);
 
 #[derive(Debug)]
 pub struct Program {
@@ -193,42 +193,14 @@ impl Program {
 		}
 	}
 
-	pub fn bind<'a, A>(&self, attribute : &str, buffer_view : BufferView<'a, A>) -> Result<(), GLError> {
+	pub fn bind(&self, attribute : &str, buffer_view : BufferView) -> Result<(), GLError> {
 		let attribute = attribute.to_string();
-		if let Some(AttributePos(pos)) = self.attributes_loc.get(&attribute) {
+		if let Some(pos) = self.attributes_loc.get(&attribute) {
 			unsafe {gl::BindVertexArray(self.current_vao.get().0);}
 
-			let BufferView {
-				buffer, offset,
-				data_info : GPUInfo {n_components, gl_type}
-			} = buffer_view;
-			unsafe {gl::BindBuffer(gl::ARRAY_BUFFER, buffer.id.0);}
+			buffer_view.bind_to(*pos);
 
-			if gl_type.is_integer() {
-				unsafe {
-					gl::VertexAttribIPointer(
-						*pos,
-						n_components as gl::types::GLint,
-						gl_type.to_opengl_sym(),
-						std::mem::size_of::<A>() as gl::types::GLsizei,
-						offset as *const _,
-					)
-				}
-			}
-			else {
-				unsafe {
-					gl::VertexAttribPointer(
-						*pos,
-						n_components as gl::types::GLint,
-						gl_type.to_opengl_sym(),
-						gl::FALSE,
-						std::mem::size_of::<A>() as gl::types::GLsizei,
-						offset as *const _,
-					)
-				}
-			}
-			unsafe {gl::EnableVertexAttribArray(*pos); }
-			unsafe {gl::BindBuffer(gl::ARRAY_BUFFER, 0);}
+			unsafe {gl::EnableVertexAttribArray(pos.0); }
 			unsafe {gl::BindVertexArray(0);}
 			Ok(())
 		}

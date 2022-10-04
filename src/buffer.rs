@@ -3,14 +3,16 @@ use gl::types::*;
 use crate::attributes::*;
 use crate::error::*;
 use crate::*;
+use crate::program::AttributePos;
 
 
 
 
 
 // -- BUFFER
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct BufferId(pub GLuint);
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct VAOId(pub GLuint);
 
@@ -110,7 +112,15 @@ pub struct Buffer<T> {
 
 impl<A> Buffer<A> {
 
-
+	pub fn cast<B>(self) -> Buffer<B> {
+		let Self { id, n_elems, kind, .. } = self;
+		Buffer::<B> {
+			id,
+			n_elems,
+			kind,
+			_phantom: std::marker::PhantomData,
+		}
+	}
 
 	pub fn from_data(
 		kind    : BufferKind,
@@ -176,7 +186,7 @@ impl<A> Buffer<A> {
 
 
 
-	pub fn view<'a, B : GPUData, T>(&'a self, get_field : T) -> BufferView<'a, A>
+	pub fn view<'a, B : GPUData, T>(&'a self, get_field : T) -> BufferView
 	where T : FnOnce(*const A) -> *const B
 	{
 		let uninit = std::mem::MaybeUninit::<A>::uninit();
@@ -189,7 +199,8 @@ impl<A> Buffer<A> {
 
 
 		BufferView {
-			buffer    : self,
+			buffer_id  : self.id,
+			stride     : std::mem::size_of::<A>(),
 			data_info, 
 			offset,
 		}
@@ -222,10 +233,11 @@ impl<A> Buffer<A> {
 }
 
 impl<A : GPUData> Buffer<A> {
-	pub fn direct_view<'a>(&'a self) -> BufferView<'a, A>
+	pub fn direct_view(&self) -> BufferView
 	{
 		BufferView {
-			buffer     : self,
+			buffer_id  : self.id,
+			stride     : std::mem::size_of::<A>(),
 			data_info  : A::INFO, 
 			offset     : 0,
 		}
@@ -238,10 +250,46 @@ macro_rules! field {
 }
 
 
-pub struct BufferView<'a, A> {
-	pub buffer: &'a Buffer<A>,
-	pub offset: usize,
+pub struct BufferView {
+	pub buffer_id: BufferId,
+	pub stride:    usize,
+	pub offset:    usize,
 	pub data_info: GPUInfo,
+}
+
+impl BufferView {
+	pub fn bind_to(self, pos : AttributePos) {
+		let BufferView {
+			buffer_id, stride, offset,
+			data_info : GPUInfo {n_components, gl_type}
+		} = self;
+		unsafe {gl::BindBuffer(gl::ARRAY_BUFFER, buffer_id.0);}
+
+		if gl_type.is_integer() {
+			unsafe {
+				gl::VertexAttribIPointer(
+					pos.0,
+					n_components as gl::types::GLint,
+					gl_type.to_opengl_sym(),
+					stride as gl::types::GLsizei,
+					offset as *const _,
+				)
+			}
+		}
+		else {
+			unsafe {
+				gl::VertexAttribPointer(
+					pos.0,
+					n_components as gl::types::GLint,
+					gl_type.to_opengl_sym(),
+					gl::FALSE,
+					stride as gl::types::GLsizei,
+					offset as *const _,
+				)
+			}
+		}
+		unsafe {gl::BindBuffer(gl::ARRAY_BUFFER, 0);}
+	}
 }
 
 
