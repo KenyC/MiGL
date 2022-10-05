@@ -1,26 +1,38 @@
 use crate::math3d::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum GLType {
 	Int,
 	Uint,
+	Byte,
+	Ubyte,
+	Short,
+	Ushort,
 	Float,
 }
 
 impl GLType {
 	pub fn is_integer(&self) -> bool {
-		match &self {
-			Self::Int   => true, 
-			Self::Uint  => true, 
-			Self::Float => false, 
+		match self {
+			Self::Float  => false,
+			Self::Int    => true, 
+			Self::Uint   => true, 
+			Self::Byte   => true,
+			Self::Ubyte  => true,
+			Self::Short  => true,
+			Self::Ushort => true,
 		}
 	}
 
 	pub fn to_opengl_sym(&self) -> gl::types::GLenum {
-		match &self {
-			Self::Int   => gl::INT, 
-			Self::Uint  => gl::UNSIGNED_INT, 
-			Self::Float => gl::FLOAT, 
+		match self {
+			Self::Int    => gl::INT, 
+			Self::Uint   => gl::UNSIGNED_INT, 
+			Self::Byte   => gl::BYTE,
+			Self::Ubyte  => gl::UNSIGNED_BYTE,
+			Self::Short  => gl::SHORT,
+			Self::Ushort => gl::UNSIGNED_SHORT,
+			Self::Float  => gl::FLOAT, 
 		}
 	}
 }

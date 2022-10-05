@@ -258,6 +258,13 @@ pub struct BufferView {
 }
 
 impl BufferView {
+    pub fn new(
+    	buffer_id: BufferId, 
+    	stride: usize, 
+    	offset: usize, 
+    	data_info: GPUInfo
+    ) -> Self { Self { buffer_id, stride, offset, data_info } }
+
 	pub fn bind_to(self, pos : AttributePos) {
 		let BufferView {
 			buffer_id, stride, offset,
