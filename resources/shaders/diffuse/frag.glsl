@@ -17,7 +17,7 @@ void main()
     float intensity = 0.0;
     intensity = ambient_strength * light_strength;
     // intensity += max(dot(f_normal, -light_direction), 0.0) * light_strength;
-    intensity += max(dot(f_normal, light_direction), 0.0) * light_strength * 0.001;
+    intensity += max(dot(f_normal, light_direction), 0.0) * light_strength;
 
     vec3 reflected_light_dir = reflect(light_direction, f_normal);
     vec3 f_pt_to_camera = camera_pos - vec3(world_position);

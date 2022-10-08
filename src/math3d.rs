@@ -193,7 +193,12 @@ impl<const N : usize> Eq for Point<N> {}
 // -- MATRIX
 
 // Convention : row-majour
-// i.e. coords[i][j] is the element in the i-th row, the j-th column  
+// i.e. coords[i][j] is the element in the i-th row, the j-th column 
+// | c00 c01 c02 |
+// | c10 c11 c12 |
+// | c20 c20 c22 |
+// Debug shows:
+// [[c00, c01, c02], [c10, c11, c12], [c20, c21, c22]]
 // so matrix multiplication is expressed as: sum over k of a_ik * b_kj
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]

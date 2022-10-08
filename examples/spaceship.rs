@@ -1,4 +1,3 @@
-use std::path;
 use std::path::Path;
 
 use migl::buffer::BufferBld;
@@ -13,7 +12,6 @@ use migl::shader::Shader;
 use migl::shader::Vertex;
 
 use sdl2::event::Event;
-use sdl2::keyboard::KeyboardState;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
 

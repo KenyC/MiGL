@@ -1,14 +1,7 @@
-use std::path;
-use std::path::Path;
-
 use migl::buffer::BufferBld;
-use migl::buffer::BufferView;
 use migl::math3d::Point;
 use migl::uniform::Uniform;
-use migl::utils::axes::Axes;
-use migl::utils::axes::AxesBuilder;
 use migl::utils::camera::CylinderCamera;
-use migl::utils::load::ObjLoader;
 use migl::math3d::M44;
 use migl::math3d::V3;
 use migl::program::ProgramBuilder;
@@ -17,7 +10,6 @@ use migl::shader::Shader;
 use migl::shader::Vertex;
 
 use sdl2::event::Event;
-use sdl2::keyboard::KeyboardState;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
 
@@ -124,7 +116,7 @@ pub fn main() {
 	let mut event_pump = sdl_context.event_pump().unwrap();
 
 	'main: loop {
-		'event : for event in event_pump.poll_iter() {
+		for event in event_pump.poll_iter() {
 			match event {
 				Event::Quit {..} |
 				Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {

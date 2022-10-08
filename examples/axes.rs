@@ -1,20 +1,9 @@
-use std::path;
-use std::path::Path;
-
-use migl::buffer::BufferBld;
-use migl::utils::axes::Axes;
 use migl::utils::axes::AxesBuilder;
 use migl::utils::camera::CylinderCamera;
-use migl::utils::load::ObjLoader;
 use migl::math3d::M44;
 use migl::math3d::V3;
-use migl::program::ProgramBuilder;
-use migl::shader::Fragment;
-use migl::shader::Shader;
-use migl::shader::Vertex;
 
 use sdl2::event::Event;
-use sdl2::keyboard::KeyboardState;
 use sdl2::keyboard::Keycode;
 use sdl2::video::GLProfile;
 
@@ -78,8 +67,8 @@ pub fn main() {
 		let view_matrix = camera.matrix();
 		let view_projection_matrix = projection_matrix.dot(&view_matrix);
 
-		axes1.draw(&view_projection_matrix);
-		axes2.draw(&view_projection_matrix);
+		axes1.draw(&view_projection_matrix).unwrap();
+		axes2.draw(&view_projection_matrix).unwrap();
 
 		window.gl_swap_window();
 	}
