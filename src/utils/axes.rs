@@ -41,7 +41,6 @@ impl AxesBuilder {
 				Shader::<Vertex>::from_str(include_str!("../../resources/shaders/axes/vert.glsl"))?,
 				Shader::<Fragment>::from_str(include_str!("../../resources/shaders/axes/frag.glsl"))?,
 			)
-			.attributes(&["position"])
 			.build()?
 		;
 

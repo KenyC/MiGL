@@ -51,7 +51,6 @@ pub fn main() {
 			Shader::<Vertex>::from_file("resources/shaders/diffuse/vert.glsl").unwrap(),
 			Shader::<Fragment>::from_file("resources/shaders/diffuse/frag.glsl").unwrap(),
 		)
-		.attributes(&["position", "normal"])
 		.build()
 		.unwrap();
 

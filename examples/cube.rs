@@ -49,7 +49,6 @@ pub fn main() {
 			Shader::<Vertex>::from_file("resources/shaders/cube/vert.glsl").unwrap(), 
 			Shader::<Fragment>::from_file("resources/shaders/cube/frag.glsl").unwrap(), 
 		)
-		.attributes(&["position", "color"])
 		.build()
 		.unwrap();
 	let mvp_uniform : Uniform<M44> = program.uniform("mvp").unwrap();

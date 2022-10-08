@@ -1,6 +1,7 @@
 use gl::types::*;
 
 
+use crate::attributes;
 use crate::buffer::*;
 use crate::uniform::*;
 use crate::shader::*;
@@ -29,7 +30,7 @@ pub struct ProgramBuilder {
 	frag_shader       : Shader<Fragment>,
 	maybe_geom_shader : Option<Shader<Geometry>>,
 	maybe_texture     : Option<(String, Texture)>,
-	attributes        : Vec<String>
+	attributes        : Option<Vec<String>>,
 }
 
 impl ProgramBuilder {
@@ -40,7 +41,7 @@ impl ProgramBuilder {
 		Self {
 			maybe_geom_shader : None,
 			maybe_texture     : None,
-			attributes        : Vec::new(),
+			attributes        : None,
 			vert_shader, frag_shader,
 		}
 	}
@@ -58,9 +59,11 @@ impl ProgramBuilder {
 
 
 	pub fn attributes(mut self, attributes : &[&str]) -> Self {
+		let mut attributes_array = Vec::with_capacity(attributes.len());
 		for attribute in attributes {
-			self.attributes.push(attribute.to_string());
+			attributes_array.push(attribute.to_string());
 		}
+		self.attributes = Some(attributes_array);
 		self
 	}
 
@@ -129,21 +132,15 @@ impl Program {
 		}
 
 		// -- Find attribute location
-		let mut attributes_loc = HashMap::new();
-		for attribute in attributes.into_iter() {
-			let uniform_name_c : CString = CString::new(attribute.clone()).unwrap();
-			let pos = unsafe {
-				gl::GetAttribLocation(program_id, uniform_name_c.as_ptr().cast())
-			};
 
-			// let pos = unsafe {pos.assume_init()};
-			if pos == -1 {
-				return Err(GLError::InexistentOrUndeclaredAttribute(attribute.to_string()));
+		let id = ProgramId(program_id);
+		let attributes_loc = 
+			if let Some(attributes) = attributes {
+				Self::from_attribute_names(id, attributes)?
 			}
 			else {
-				attributes_loc.insert(attribute, AttributePos(pos as gl::types::GLuint));
-			}
-		}
+				Self::get_all_attributes(id)?
+			};
 
 
 		// -- Generate default vao
@@ -156,7 +153,7 @@ impl Program {
 
 
 		let mut to_return = Self {
-			id :           ProgramId(program_id),
+			id,
 			has_geometry : maybe_geom_shader.is_some(),
 			vao :  vao_id,
 			attributes_loc : Rc::new(attributes_loc),
@@ -171,6 +168,74 @@ impl Program {
 		}
 		else { None };
 
+		Ok(to_return)
+	}
+
+	fn get_all_attributes(id : ProgramId) -> Result<HashMap<String, AttributePos>, GLError> {
+		let mut n_attributes : gl::types::GLint = -1;
+		unsafe { gl::GetProgramiv(id.0, gl::ACTIVE_ATTRIBUTES, &mut n_attributes); }
+
+		if n_attributes < 0 {return Err(GLError::CannotGetAttributeCountOnProgram)}
+
+		const MAX_ATTRIBUTE_BUFFER_SIZE : usize = 50;
+		let mut attribute_name_buffer : [gl::types::GLchar; MAX_ATTRIBUTE_BUFFER_SIZE] = [0; MAX_ATTRIBUTE_BUFFER_SIZE];
+		let mut to_return = HashMap::with_capacity(n_attributes as usize);
+		for i in 0 .. n_attributes {
+			let mut gl_type = 0;
+			let mut length  = 0;
+			let mut size    = 0;
+			unsafe {
+				gl::GetActiveAttrib(
+					id.0, 
+					i as gl::types::GLuint, 
+					MAX_ATTRIBUTE_BUFFER_SIZE as gl::types::GLint, 
+					&mut length, 
+					&mut size, 
+					&mut gl_type, 
+					attribute_name_buffer.as_mut_ptr()
+				);
+			}
+			if (length as usize) > MAX_ATTRIBUTE_BUFFER_SIZE { return Err(GLError::AttributeNameTooLong); }
+
+			let attribute_name = String::from_utf8(
+				attribute_name_buffer
+				.iter()
+				.take_while(|&c| *c != 0)
+				.map(|c| (*c) as u8)
+				.collect::<Vec<u8>>()
+			).map_err(|_| GLError::AttributeNameEncodingError)?;
+
+			let uniform_name_c : CString = CString::new(attribute_name.clone()).unwrap();
+			let pos = unsafe {
+				gl::GetAttribLocation(id.0, uniform_name_c.as_ptr().cast())
+			};
+
+			if pos != -1 {
+				to_return.insert(attribute_name, AttributePos(pos as gl::types::GLuint));
+			}
+		}
+
+		Ok(to_return)
+	}
+
+	fn from_attribute_names(id : ProgramId, attribute_names : Vec<String>) -> Result<HashMap<String, AttributePos>, GLError>
+	{
+		let mut to_return = HashMap::new();
+		for attribute in attribute_names.into_iter() {
+			let uniform_name_c : CString = CString::new(attribute.clone()).unwrap();
+			let pos = unsafe {
+				gl::GetAttribLocation(id.0, uniform_name_c.as_ptr().cast())
+			};
+
+			// let pos = unsafe {pos.assume_init()};
+			if pos == -1 {
+				return Err(GLError::InexistentOrUndeclaredAttribute(attribute.to_string()));
+
+			}
+			else {
+				to_return.insert(attribute, AttributePos(pos as gl::types::GLuint));
+			}
+		}
 		Ok(to_return)
 	}
 

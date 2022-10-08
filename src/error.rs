@@ -14,6 +14,9 @@ pub enum GLError {
 	InexistentUniformBuffer(String),
 	UnregisteredVAO,
 	NoBufferAttached,
+	CannotGetAttributeCountOnProgram,
+	AttributeNameTooLong,
+	AttributeNameEncodingError,
 }
 
 
