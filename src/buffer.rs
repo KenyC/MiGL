@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use gl::types::*;
 
 use crate::attributes::*;
@@ -200,6 +202,7 @@ impl<A> Buffer<A> {
 
 		BufferView {
 			buffer_id  : self.id,
+			n_elems    : self.n_elems,
 			stride     : std::mem::size_of::<A>(),
 			data_info, 
 			offset,
@@ -235,11 +238,18 @@ impl<A> Buffer<A> {
 impl<A : GPUData> Buffer<A> {
 	pub fn direct_view(&self) -> BufferView
 	{
+		self.view_range(0 .. self.n_elems)
+	}
+
+	pub fn view_range(&self, range : Range<usize>) -> BufferView
+	{
+		let stride = std::mem::size_of::<A>();
 		BufferView {
 			buffer_id  : self.id,
-			stride     : std::mem::size_of::<A>(),
+			n_elems    : range.len(),
+			stride,
 			data_info  : A::INFO, 
-			offset     : 0,
+			offset     : range.start * stride,
 		}
 	}
 }
@@ -252,6 +262,7 @@ macro_rules! field {
 
 pub struct BufferView {
 	pub buffer_id: BufferId,
+	pub n_elems:   usize,
 	pub stride:    usize,
 	pub offset:    usize,
 	pub data_info: GPUInfo,
@@ -260,15 +271,16 @@ pub struct BufferView {
 impl BufferView {
     pub fn new(
     	buffer_id: BufferId, 
-    	stride: usize, 
-    	offset: usize, 
+    	n_elems:   usize, 
+    	stride:    usize, 
+    	offset:    usize, 
     	data_info: GPUInfo
-    ) -> Self { Self { buffer_id, stride, offset, data_info } }
+    ) -> Self { Self { buffer_id, stride, offset, data_info, n_elems } }
 
 	pub fn bind_to(self, pos : AttributePos) {
 		let BufferView {
 			buffer_id, stride, offset,
-			data_info : GPUInfo {n_components, gl_type}
+			data_info : GPUInfo {n_components, gl_type}, ..
 		} = self;
 		unsafe {gl::BindBuffer(gl::ARRAY_BUFFER, buffer_id.0);}
 
@@ -299,11 +311,12 @@ impl BufferView {
 	}
 }
 
+pub type IndexBuffer = Buffer<gl::types::GLuint>;
 
 #[derive(Debug)]
 pub struct IndexedBuffer<A> {
 	pub data:     Buffer<A>,
-	pub indices:  Buffer<gl::types::GLuint>,
+	pub indices:  IndexBuffer,
 	pub n_elems:  usize,
 }
 

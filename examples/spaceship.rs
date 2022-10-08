@@ -127,9 +127,9 @@ pub fn main() {
 		camera_pos_uniform.pass(&camera.position());
 
 		program.set_current();
-		program.draw_buffer(&spaceship_buffer, program::DrawMode::Tris);
+		program.draw_buffer(program::DrawMode::Tris).unwrap();
 
-		axes.draw(&vp_matrix);
+		axes.draw(&vp_matrix).unwrap();
 
 		window.gl_swap_window();
 	}

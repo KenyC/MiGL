@@ -14,6 +14,7 @@ use std::collections::HashSet;
 use std::ffi::CString;
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::rc::Rc;
 
 
 // -- Program
@@ -35,7 +36,7 @@ impl ProgramBuilder {
 	pub fn new(
 		vert_shader       : Shader<Vertex>,
 		frag_shader       : Shader<Fragment>,
-	) -> Self {
+		) -> Self {
 		Self {
 			maybe_geom_shader : None,
 			maybe_texture     : None,
@@ -78,16 +79,17 @@ pub struct Program {
 	pub id: ProgramId,
 	has_geometry: bool,
 	maybe_texture: Option<Texture>,
-	current_vao: Cell<VAOId>,      // this is guaranteed to point to one of "vao_ids"
-	vao_ids: HashSet<VAOId>, // this is guaranteed to be non-empty 
-	attributes_loc : HashMap<String, AttributePos>,
+	indices : Option<IndexBuffer>,
+	vao: VAOId,
+	n_elems: Cell<Option<usize>>,
+	attributes_loc : Rc<HashMap<String, AttributePos>>,
 }
 
 impl Program {
 
 	pub fn new(
 		builder : ProgramBuilder
-	) -> Result<Self, GLError> 
+		) -> Result<Self, GLError> 
 	{
 		let ProgramBuilder {
 			vert_shader,
@@ -104,7 +106,7 @@ impl Program {
 			gl::AttachShader(program_id, frag_shader.id);
 			maybe_geom_shader.as_ref().map_or((), |geom_shader|
 				gl::AttachShader(program_id, geom_shader.id)
-			);
+				);
 			gl::LinkProgram(program_id);
 		}		
 
@@ -123,7 +125,7 @@ impl Program {
 			gl::DetachShader(program_id, frag_shader.id);
 			maybe_geom_shader.as_ref().map_or((), |geom_shader|
 				gl::DetachShader(program_id, geom_shader.id)
-			);
+				);
 		}
 
 		// -- Find attribute location
@@ -156,10 +158,11 @@ impl Program {
 		let mut to_return = Self {
 			id :           ProgramId(program_id),
 			has_geometry : maybe_geom_shader.is_some(),
-			current_vao :  Cell::new(vao_id),
-			vao_ids :      HashSet::from([vao_id]),
-			attributes_loc,
+			vao :  vao_id,
+			attributes_loc : Rc::new(attributes_loc),
 			maybe_texture : None,
+			n_elems: Cell::new(None),
+			indices: None,
 		};
 
 		to_return.maybe_texture = if let Some((name, texture)) = maybe_texture {
@@ -172,44 +175,53 @@ impl Program {
 	}
 
 
-	pub fn new_vao(&mut self) -> Result<VAOId, GLError> {
+	pub fn duplicate(&self) -> Result<Self, GLError> {
 		let mut vao_id = 0;
 		unsafe {gl::GenVertexArrays(1, &mut vao_id);}
 		if vao_id == 0 {
 			return Err(GLError::CouldNotCreateVAO);
 		}
 		let vao_id = VAOId(vao_id);
-		self.vao_ids.insert(vao_id);
-		return Ok(vao_id);
+
+
+
+		return Ok(Self {
+			id: self.id,
+			has_geometry: self.has_geometry,
+			maybe_texture: self.maybe_texture.clone(),
+			vao: vao_id,
+			attributes_loc: self.attributes_loc.clone(),
+			n_elems: Cell::new(None),
+    		indices: None,
+		});
 	}
 
-	pub fn set_vao(&self, vao_id : VAOId) -> Result<(), GLError> {
-		if self.vao_ids.contains(&vao_id) {
-			self.current_vao.set(vao_id);
-			Ok(())
-		}
-		else {
-			Err(GLError::UnregisteredVAO)
-		}
-	}
 
 	pub fn bind(&self, attribute : &str, buffer_view : BufferView) -> Result<(), GLError> {
 		let attribute = attribute.to_string();
 		if let Some(pos) = self.attributes_loc.get(&attribute) {
-			unsafe {gl::BindVertexArray(self.current_vao.get().0);}
+			unsafe {gl::BindVertexArray(self.vao.0);}
 
+			let new_val = Some(buffer_view.n_elems);
 			buffer_view.bind_to(*pos);
 
 			unsafe {gl::EnableVertexAttribArray(pos.0); }
 			unsafe {gl::BindVertexArray(0);}
+
+			if self.n_elems.get() < new_val {
+				self.n_elems.set(new_val)
+			}
 			Ok(())
 		}
 		else {
 			Err(GLError::InexistentOrUndeclaredAttribute(attribute.to_string()))
 		}
-
-
 	}	
+
+
+	pub fn set_indices(&mut self, indices: IndexBuffer) {
+		self.indices = Some(indices);
+	}
 
 
 	pub fn uniform<'a, T : UniformData + ?Sized>(&'a self, uniform_name : &str) -> Result<Uniform<'a, T>, GLError> {
@@ -270,28 +282,35 @@ impl Program {
 		}
 	}
 
-	pub fn draw_buffer<A>(&self, buffer : &Buffer<A>, mode : DrawMode) -> () {
-		self.draw_buffer_partial(buffer, 0, buffer.n_elems, mode)
+	pub fn draw_buffer(&self, mode : DrawMode) -> Result<(), GLError> {
+		if let Some(indices) = &self.indices {
+			self.draw_indexed_buffer(indices);
+		}
+		else {
+			let n_elems = self.n_elems.get().ok_or(GLError::NoBufferAttached)?;
+			self.draw_buffer_partial(0, n_elems, mode);
+		}
+		Ok(())
 	}
 
-	pub fn draw_indexed_buffer<A>(&self, indexed_buffer : &IndexedBuffer<A>) -> () {
+	pub fn draw_indexed_buffer(&self, indices : &IndexBuffer) -> () {
 		self.bind_texture();
-		unsafe {gl::BindVertexArray(self.current_vao.get().0);}
-		unsafe {gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, indexed_buffer.indices.id.0);}
+		unsafe {gl::BindVertexArray(self.vao.0);}
+		unsafe {gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, indices.id.0);}
 		unsafe {
 			gl::DrawElements(
 				DrawMode::Tris.to_gl(), 
-				indexed_buffer.n_elems as gl::types::GLsizei, 
+				indices.n_elems as gl::types::GLsizei, 
 				gl::UNSIGNED_INT, 
 				std::ptr::null()
-			);
+				);
 		}
 		self.unbind_texture();
 	}
 
-	pub fn draw_buffer_partial<A>(&self, _buffer : &Buffer<A>, from : usize, how_many : usize, mode : DrawMode) -> () {
+	pub fn draw_buffer_partial(&self, from : usize, how_many : usize, mode : DrawMode) -> () {
 		self.bind_texture();
-		unsafe {gl::BindVertexArray(self.current_vao.get().0);}
+		unsafe {gl::BindVertexArray(self.vao.0);}
 		unsafe {gl::DrawArrays(mode.to_gl(), from as gl::types::GLint, how_many as gl::types::GLsizei);}
 		self.unbind_texture();
 	}
@@ -300,14 +319,14 @@ impl Program {
 		self.bind_texture();
 		let starts = ranges.iter().map(|(x, _)| *x as gl::types::GLint).collect::<Vec<_>>();
 		let counts = ranges.iter().map(|(_, y)| *y as gl::types::GLsizei).collect::<Vec<_>>();
-		unsafe {gl::BindVertexArray(self.current_vao.get().0);}
+		unsafe {gl::BindVertexArray(self.vao.0);}
 		unsafe {
 			gl::MultiDrawArrays(
 				mode.to_gl(), 
 				starts.as_ptr(), 
 				counts.as_ptr(), 
 				ranges.len() as gl::types::GLsizei
-			);
+				);
 		}
 		self.unbind_texture();
 	}

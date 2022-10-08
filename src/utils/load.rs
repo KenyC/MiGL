@@ -198,6 +198,8 @@ impl ObjLoader {
 
 
 mod test {
+    use crate::{utils::load::{Object, ObjLoader}, math3d::V3};
+
 
 
 	#[test]
@@ -260,8 +262,8 @@ mod test {
 		assert!(result);
 
 		assert_eq!(object.vertices,        vec![]);
-		assert_eq!(object.faces,           vec![(6, 11, 7), (11, 7, 4),]);
-		assert_eq!(object.face_normals,    vec![1, 1,]);
+		assert_eq!(object.faces,           vec![(5, 10, 6), (10, 6, 3),]);
+		assert_eq!(object.face_normals,    vec![(0, 0, 0), (0, 0, 0), ]);
 
 	}
 }

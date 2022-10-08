@@ -83,7 +83,7 @@ impl<'a> Axes<'a> {
 		self.builder.program.set_current();
 		self.vp_uniform.pass(vp);
 		self.model_uniform.pass(&self.model);
-		self.builder.program.draw_buffer(&self.builder.buffer, DrawMode::Lines);
+		self.builder.program.draw_buffer(DrawMode::Lines)?;
 		Ok(())
 	}
 }

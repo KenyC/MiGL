@@ -13,6 +13,7 @@ pub enum GLError {
 	InexistentUniform(String),
 	InexistentUniformBuffer(String),
 	UnregisteredVAO,
+	NoBufferAttached,
 }
 
 
