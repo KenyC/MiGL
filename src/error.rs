@@ -17,6 +17,7 @@ pub enum GLError {
 	CannotGetAttributeCountOnProgram,
 	AttributeNameTooLong,
 	AttributeNameEncodingError,
+	BufferTooSmallForConversion,
 }
 
 

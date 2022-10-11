@@ -19,7 +19,7 @@ pub struct BufferId(pub GLuint);
 pub struct VAOId(pub GLuint);
 
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BufferKind {
 	ArrayBuffer,
 	IndexBuffer,
@@ -94,39 +94,40 @@ impl BufferBld {
 	}
 
 	pub fn data<A>(self, data : &[A]) -> Result<Buffer<A>, GLError> {
-		Buffer::from_data(
-			self.kind,
-			self.update,
-			data,
-		)
-	}
-
-}
-
-
-#[derive(Debug)]
-pub struct Buffer<T> {
-	pub id      : BufferId,
-	pub n_elems : usize,
-	pub kind    : BufferKind,
-	_phantom    : std::marker::PhantomData<T>
-}
-
-impl<A> Buffer<A> {
-
-	pub fn cast<B>(self) -> Buffer<B> {
-		let Self { id, n_elems, kind, .. } = self;
-		Buffer::<B> {
-			id,
-			n_elems,
-			kind,
+		let raw_buffer = self.data_raw(data)?;
+		Ok(Buffer {
+			raw: raw_buffer,
+			n_elems: data.len(),
 			_phantom: std::marker::PhantomData,
-		}
+		})
 	}
 
-	pub fn from_data(
-		kind    : BufferKind,
+	pub fn data_any<A>(self, data : &[A], n_elems : usize, gpu_info : GPUInfo) -> Result<AnyBuffer, GLError>
+	{
+		let raw_buffer = self.data_raw(data)?;
+		Ok(AnyBuffer {
+			gpu_info,
+			n_elems,
+			raw: raw_buffer,
+		})
+	}
+
+	pub fn data_raw<A>(self, data : &[A]) -> Result<RawBuffer, GLError>
+	{
+		RawBuffer::from_data(self.update, self.kind, data)
+	}
+}
+
+#[derive(Debug, Clone)]
+pub struct RawBuffer {
+	pub id      : BufferId,
+	pub kind    : BufferKind,
+}
+
+impl RawBuffer {
+	fn from_data<A>(
 		update  : UpdateKind,
+		kind    : BufferKind,
 		data    : &[A],
 	) -> Result<Self, GLError>
 	{
@@ -153,13 +154,64 @@ impl<A> Buffer<A> {
 		unsafe {
 			gl::BindBuffer(kind.cst(), 0)
 		}
-		Ok(Self {
-			id       : BufferId(buffer_id),
-			n_elems  : data.len(),
+		Ok(RawBuffer {
+			id: BufferId(buffer_id),
 			kind,
-			_phantom : std::marker::PhantomData, 
 		})
 	}
+}
+
+#[derive(Debug, Clone)]
+pub struct AnyBuffer {
+	pub gpu_info : GPUInfo,
+	pub n_elems  : usize,
+	raw   : RawBuffer, 
+}
+
+impl AnyBuffer {
+	#[inline]
+	pub fn id(&self)   -> BufferId     { self.raw.id      }
+	#[inline]
+	pub fn kind(&self) -> BufferKind   { self.raw.kind    }
+}
+
+
+// INVARIANT: whatever data was passed to the GPU, it should be of size "sizeof(A) * n_elems"
+#[derive(Debug, Clone)]
+pub struct Buffer<A> {
+	pub raw : RawBuffer,
+	pub n_elems : usize,
+	_phantom    : std::marker::PhantomData<A>
+}
+
+impl<A : GPUData> Buffer<A> {
+	pub fn to_untyped(self) -> AnyBuffer {
+		let Buffer { raw: buffer, _phantom, n_elems } = self;
+		AnyBuffer { 
+			gpu_info: A::INFO, 
+			n_elems,
+			raw: buffer,
+		}
+	}
+}
+
+
+
+
+
+
+impl<A> Buffer<A> {
+	pub fn interpret_as<B>(self, n_elems : usize) -> Result<Buffer<B>, GLError>{
+		let Buffer { raw: buffer, _phantom, n_elems : n_elems_original } = self;
+		if n_elems_original * std::mem::size_of::<A>() < n_elems * std::mem::size_of::<B>()
+		{ return Err(GLError::BufferTooSmallForConversion); }
+		Ok(Buffer::<B> {
+			raw: buffer,
+			n_elems,
+			_phantom: std::marker::PhantomData,
+		})
+	}
+
 
 
 	pub fn replace_data(
@@ -170,19 +222,19 @@ impl<A> Buffer<A> {
 	{
 
 		unsafe {
-			gl::BindBuffer(self.kind.cst(), self.id.0)
+			gl::BindBuffer(self.raw.kind.cst(), self.raw.id.0)
 		}
 
 		unsafe {
 			gl::BufferSubData(
-				self.kind.cst(),
+				self.raw.kind.cst(),
 				offset as gl::types::GLintptr,
 				std::mem::size_of_val(data) as gl::types::GLsizeiptr,
 				data.as_ptr().cast(),
 			)
 		}
 		unsafe {
-			gl::BindBuffer(self.kind.cst(), 0)
+			gl::BindBuffer(self.raw.kind.cst(), 0)
 		}
 	}
 
@@ -201,7 +253,7 @@ impl<A> Buffer<A> {
 
 
 		BufferView {
-			buffer_id  : self.id,
+			buffer_id  : self.raw.id,
 			n_elems    : self.n_elems,
 			stride     : std::mem::size_of::<A>(),
 			data_info, 
@@ -211,18 +263,18 @@ impl<A> Buffer<A> {
 
 
 	pub fn register(self, gl : &mut GLWrap) -> Result<UniformBuffer<A>, GLError>  {
-		if self.kind != BufferKind::UniformBuffer  {
+		if self.raw.kind != BufferKind::UniformBuffer  {
 			Err(GLError::IsntUniformBuffer)
 		}
 		else {
 			let binding_point = gl.new_binding_point();
 
 			unsafe {
-				gl::BindBuffer(self.kind.cst(), self.id.0);
+				gl::BindBuffer(self.raw.kind.cst(), self.raw.id.0);
 				gl::BindBufferBase(
 					gl::UNIFORM_BUFFER, 
 					binding_point.0, 
-					self.id.0,
+					self.raw.id.0,
 				); 
 				gl::BindBuffer(gl::UNIFORM_BUFFER, 0);
 			}
@@ -245,7 +297,7 @@ impl<A : GPUData> Buffer<A> {
 	{
 		let stride = std::mem::size_of::<A>();
 		BufferView {
-			buffer_id  : self.id,
+			buffer_id  : self.raw.id,
 			n_elems    : range.len(),
 			stride,
 			data_info  : A::INFO, 
@@ -259,7 +311,7 @@ macro_rules! field {
 	($field : tt) => {(|buffer_ref| unsafe{ &((*buffer_ref).$field) as *const _})}
 }
 
-
+#[derive(Clone)]
 pub struct BufferView {
 	pub buffer_id: BufferId,
 	pub n_elems:   usize,

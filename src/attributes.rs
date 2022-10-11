@@ -41,7 +41,9 @@ impl GLType {
 
 // -- ATTRIBUTES
 
-#[derive(Debug)]
+// Type info for GPU
+// describes an array of "n_components" elements of type "gl_type"'s
+#[derive(Debug, Clone)]
 pub struct GPUInfo {
 	pub n_components: usize,
 	pub gl_type:      GLType,

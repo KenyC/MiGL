@@ -361,7 +361,7 @@ impl Program {
 	pub fn draw_indexed_buffer(&self, indices : &IndexBuffer) -> () {
 		self.bind_texture();
 		unsafe {gl::BindVertexArray(self.vao.0);}
-		unsafe {gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, indices.id.0);}
+		unsafe {gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, indices.raw.id.0);}
 		unsafe {
 			gl::DrawElements(
 				DrawMode::Tris.to_gl(), 
