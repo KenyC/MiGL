@@ -56,6 +56,8 @@ pub trait GPUData {
 	const INFO: GPUInfo;
 }
 
+pub trait GPUIndex : GPUData {}
+
 impl GPUData for V2 {
 	const INFO: GPUInfo = GPUInfo {
 		n_components : 2,
@@ -95,12 +97,34 @@ impl GPUData for gl::types::GLint {
 
 
 
-
-impl GPUData for gl::types::GLuint {
+impl GPUIndex for gl::types::GLuint {}
+impl GPUData  for gl::types::GLuint {
 	const INFO: GPUInfo = GPUInfo {
 		n_components : 1,
 		gl_type   : GLType::Uint,
 	};
 }
+
+
+
+impl GPUIndex for gl::types::GLushort {}
+impl GPUData  for gl::types::GLushort {
+	const INFO: GPUInfo = GPUInfo {
+		n_components : 1,
+		gl_type   : GLType::Ushort,
+	};
+}
+
+
+
+
+impl GPUIndex for gl::types::GLubyte {}
+impl GPUData  for gl::types::GLubyte {
+	const INFO: GPUInfo = GPUInfo {
+		n_components : 1,
+		gl_type   : GLType::Ubyte,
+	};
+}
+
 
 

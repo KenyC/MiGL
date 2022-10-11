@@ -179,7 +179,7 @@ impl AnyBuffer {
 // INVARIANT: whatever data was passed to the GPU, it should be of size "sizeof(A) * n_elems"
 #[derive(Debug, Clone)]
 pub struct Buffer<A> {
-	pub raw : RawBuffer,
+	raw : RawBuffer,
 	pub n_elems : usize,
 	_phantom    : std::marker::PhantomData<A>
 }
@@ -363,21 +363,7 @@ impl BufferView {
 	}
 }
 
-pub type IndexBuffer = Buffer<gl::types::GLuint>;
 
-#[derive(Debug)]
-pub struct IndexedBuffer<A> {
-	pub data:     Buffer<A>,
-	pub indices:  IndexBuffer,
-	pub n_elems:  usize,
-}
-
-impl<A> IndexedBuffer<A> {
-	pub fn new(data : Buffer<A>, indices : Buffer<gl::types::GLuint>) -> Self {
-		let n_elems = indices.n_elems;
-		Self {data, indices, n_elems}
-	}
-}
 
 pub struct UniformBuffer<D> {
 	pub buffer : Buffer<D>,

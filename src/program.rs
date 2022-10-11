@@ -82,7 +82,7 @@ pub struct Program {
 	pub id: ProgramId,
 	has_geometry: bool,
 	maybe_texture: Option<Texture>,
-	indices : Option<IndexBuffer>,
+	indices : Option<AnyBuffer>,
 	vao: VAOId,
 	n_elems: Cell<Option<usize>>,
 	attributes_loc : Rc<HashMap<String, AttributePos>>,
@@ -177,8 +177,8 @@ impl Program {
 
 		if n_attributes < 0 {return Err(GLError::CannotGetAttributeCountOnProgram)}
 
-		const MAX_ATTRIBUTE_BUFFER_SIZE : usize = 50;
-		let mut attribute_name_buffer : [gl::types::GLchar; MAX_ATTRIBUTE_BUFFER_SIZE] = [0; MAX_ATTRIBUTE_BUFFER_SIZE];
+		const MAX_ATTRIBUTE_NAME_LENGTH : usize = 50;
+		let mut attribute_name_buffer : [gl::types::GLchar; MAX_ATTRIBUTE_NAME_LENGTH] = [0; MAX_ATTRIBUTE_NAME_LENGTH];
 		let mut to_return = HashMap::with_capacity(n_attributes as usize);
 		for i in 0 .. n_attributes {
 			let mut gl_type = 0;
@@ -188,14 +188,14 @@ impl Program {
 				gl::GetActiveAttrib(
 					id.0, 
 					i as gl::types::GLuint, 
-					MAX_ATTRIBUTE_BUFFER_SIZE as gl::types::GLint, 
+					MAX_ATTRIBUTE_NAME_LENGTH as gl::types::GLint, 
 					&mut length, 
 					&mut size, 
 					&mut gl_type, 
 					attribute_name_buffer.as_mut_ptr()
 				);
 			}
-			if (length as usize) > MAX_ATTRIBUTE_BUFFER_SIZE { return Err(GLError::AttributeNameTooLong); }
+			if (length as usize) > MAX_ATTRIBUTE_NAME_LENGTH { return Err(GLError::AttributeNameTooLong); }
 
 			let attribute_name = String::from_utf8(
 				attribute_name_buffer
@@ -284,7 +284,12 @@ impl Program {
 	}	
 
 
-	pub fn set_indices(&mut self, indices: IndexBuffer) {
+	pub fn set_indices<A : GPUIndex>(&mut self, indices: Buffer<A>) {
+		self.indices = Some(indices.to_untyped());
+	}
+
+
+	pub fn set_indices_untyped(&mut self, indices: AnyBuffer) {
 		self.indices = Some(indices);
 	}
 
@@ -334,6 +339,7 @@ impl Program {
 		Ok(())
 	}
 
+	#[inline]
 	fn bind_texture(&self) {
 		if let Some(texture) = &self.maybe_texture {
 			unsafe {gl::ActiveTexture(gl::TEXTURE0);}
@@ -341,6 +347,7 @@ impl Program {
 		}
 	}
 
+	#[inline]
 	fn unbind_texture(&self) {
 		if let Some(_) = &self.maybe_texture {
 			unsafe {gl::BindTexture(gl::TEXTURE_2D, 0);}
@@ -358,15 +365,15 @@ impl Program {
 		Ok(())
 	}
 
-	pub fn draw_indexed_buffer(&self, indices : &IndexBuffer) -> () {
+	pub fn draw_indexed_buffer(&self, indices : &AnyBuffer) -> () {
 		self.bind_texture();
 		unsafe {gl::BindVertexArray(self.vao.0);}
-		unsafe {gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, indices.raw.id.0);}
+		unsafe {gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, indices.id().0);}
 		unsafe {
 			gl::DrawElements(
 				DrawMode::Tris.to_gl(), 
 				indices.n_elems as gl::types::GLsizei, 
-				gl::UNSIGNED_INT, 
+				indices.gpu_info.gl_type.to_opengl_sym(), 
 				std::ptr::null()
 				);
 		}
@@ -380,7 +387,7 @@ impl Program {
 		self.unbind_texture();
 	}
 
-	pub fn draw_buffer_partial_multi<A>(&self, _buffer : &Buffer<A>, ranges : &[(usize, usize)], mode : DrawMode) -> () {
+	pub fn draw_buffer_partial_multi<A>(&self, ranges : &[(usize, usize)], mode : DrawMode) -> () {
 		self.bind_texture();
 		let starts = ranges.iter().map(|(x, _)| *x as gl::types::GLint).collect::<Vec<_>>();
 		let counts = ranges.iter().map(|(_, y)| *y as gl::types::GLsizei).collect::<Vec<_>>();
