@@ -159,6 +159,25 @@ impl RawBuffer {
 			kind,
 		})
 	}
+
+	pub fn view(&self, n_elems : usize, stride : Option<usize>, offset : usize, gpu_type : GPUInfo) -> BufferView {
+		BufferView { 
+			buffer_id: self.id,
+			n_elems,
+			stride: stride.unwrap_or(0),
+			offset,
+			data_info: gpu_type,
+		}
+	}
+
+	pub fn as_typed<A>(self, n_elems : usize) -> Buffer<A>
+	{
+		Buffer { raw: self, n_elems, _phantom: std::marker::PhantomData }
+	}
+	pub fn as_any_typed(self, n_elems : usize, gpu_type : GPUInfo) -> AnyBuffer
+	{
+		AnyBuffer { gpu_info : gpu_type, n_elems, raw: self }
+	}
 }
 
 #[derive(Debug, Clone)]
