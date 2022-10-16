@@ -100,6 +100,34 @@ impl<const N: usize> Point<N> {
 	pub fn normalize(self) -> Self {
 		self.scale(self.norm().recip())
 	}
+
+	pub fn from_le_bytes(bytes : &[u8]) -> Self {
+		let mut to_return = [0.; N];
+
+		let iterator =
+			bytes
+				.chunks(std::mem::size_of::<f32>())
+				.map(|s| f32::from_le_bytes(s.try_into().unwrap()));
+		for (i, x) in iterator.enumerate().take(N) {
+			to_return[i] = x;
+		}
+
+		Self(to_return)
+	}
+
+	pub fn from_be_bytes(bytes : &[u8]) -> Self {
+		let mut to_return = [0.; N];
+
+		let iterator =
+			bytes
+				.chunks(std::mem::size_of::<f32>())
+				.map(|s| f32::from_be_bytes(s.try_into().unwrap()));
+		for (i, x) in iterator.enumerate().take(N) {
+			to_return[i] = x;
+		}
+
+		Self(to_return)
+	}
 }
 
 
@@ -189,6 +217,43 @@ impl<const N : usize> PartialEq for Point<N> {
 }
 
 impl<const N : usize> Eq for Point<N> {}
+
+// -- QUATERNIONS
+// Unit quaternions
+#[derive(Debug, Clone)]
+pub struct Quaternion(V4);
+
+impl Quaternion {
+	pub fn new(values : V4) -> Self {
+		Self(values.normalize())
+	}
+	pub fn rotation(axis : V3, angle : f32) -> Self {
+		let axis = axis.normalize();
+		let (sin, cos) = (0.5 * angle).sin_cos();
+		Self(V4::new(
+			[cos, axis.0[0] * sin, axis.0[1] * sin, axis.0[2] * sin,]
+		))
+	}
+
+	pub fn close_to(&self, other : &Self) -> bool {
+		(self.0 - other.0).quadrance() < ZERO_THRESHOLD
+	}
+}
+
+// q1 * q2 is equivalent to ROT2 * ROT1 is matrix settings
+impl Mul<Quaternion> for Quaternion {
+    type Output = Quaternion;
+
+    fn mul(self, rhs: Quaternion) -> Self::Output {
+        Self(V4::new([
+        	self.0.0[0] * rhs.0.0[0] - self.0.0[1] * rhs.0.0[1] - self.0.0[2] * rhs.0.0[2] - self.0.0[3] * rhs.0.0[3],
+        	self.0.0[0] * rhs.0.0[1] + self.0.0[1] * rhs.0.0[0] + self.0.0[2] * rhs.0.0[3] - self.0.0[3] * rhs.0.0[2],
+        	self.0.0[0] * rhs.0.0[2] - self.0.0[1] * rhs.0.0[3] + self.0.0[2] * rhs.0.0[0] + self.0.0[3] * rhs.0.0[1],
+        	self.0.0[0] * rhs.0.0[3] + self.0.0[1] * rhs.0.0[2] - self.0.0[2] * rhs.0.0[1] + self.0.0[3] * rhs.0.0[0],
+        ]))
+    }
+}
+
 
 // -- MATRIX
 
@@ -343,6 +408,26 @@ impl M44 {
 }
 
 impl<const N : usize> Matrix<N> {
+
+	pub fn from_row_major(input : &[f32]) -> Self {
+		let mut coords : [[f32; N]; N] = [[0.; N]; N];
+		for i in 0 .. N {
+			for j in 0 .. N {
+				coords[i][j] = input[i * N + j];
+			}
+		}
+		Self (coords)
+	}
+
+	pub fn from_col_major(input : &[f32]) -> Self {
+		let mut coords : [[f32; N]; N] = [[0.; N]; N];
+		for i in 0 .. N {
+			for j in 0 .. N {
+				coords[i][j] = input[j * N + i];
+			}
+		}
+		Self (coords)
+	}
 
 	pub fn new(coords: [[f32; N]; N]) -> Self {
 		Self(coords)
@@ -625,7 +710,50 @@ mod tests {
 				assert!(close_to(expected_inv_matrix.0[i][j], predict_inv_matrix.0[i][j]));
 			}
 		}
-
-
 	}
+
+
+	#[test]
+	fn quaternion_mul() {
+		let q1 = Quaternion::rotation(V3::E_X, 25_f32.to_radians());
+		let q2 = Quaternion::rotation(V3::E_X, 45_f32.to_radians());
+		let q3 = Quaternion::rotation(V3::E_X, 70_f32.to_radians());
+
+		assert!(q3.close_to(&(q2 * q1)));
+
+		let q1 = Quaternion::rotation(V3::E_X, -90_f32.to_radians());
+		let q2 = Quaternion::rotation(V3::E_Z, 90_f32.to_radians());
+		let q3 = Quaternion::rotation(V3::E_X, 90_f32.to_radians());
+		let q4 = Quaternion::rotation(V3::E_Y, 90_f32.to_radians());
+
+		assert!(q4.close_to(&(q1 * (q2 * q3))));
+	}
+
+	#[test]
+	fn from_bytes() {
+		let array : [u8; 4 * 4] = [
+			0x40, 0x49, 0x0f, 0xdb, // pi      big endian 32bits
+			0x3f, 0x80, 0x00, 0x00, // 1       big endian 32bits
+			0x37, 0xfb, 0xa8, 0x82, // 3.10-5  big endian 32bits
+			0xc0, 0x80, 0x00, 0x00, // -4      big endian 32bits
+		];
+
+		assert_eq!(
+			V4::new([3.1415926535897932384626433832795, 1.0, 3.0e-5, -4.]),
+			V4::from_be_bytes(&array),
+		);
+
+		let array : [u8; 4 * 4] = [
+			0xdb, 0x0f, 0x49, 0x40, // pi      little endian 32bits
+			0x00, 0x00, 0x80, 0x3f, // 1       little endian 32bits
+			0x82, 0xa8, 0xfb, 0x37, // 3.10-5  little endian 32bits
+			0x00, 0x00, 0x80, 0xc0, // -4      little endian 32bits
+		];
+
+		assert_eq!(
+			V4::new([3.1415926535897932384626433832795, 1.0, 3.0e-5, -4.]),
+			V4::from_le_bytes(&array),
+		)
+	}
+
 }
