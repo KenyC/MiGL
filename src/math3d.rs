@@ -3,14 +3,26 @@ use std::ops::*;
 
 const ZERO_THRESHOLD : f32 = 1e-5;
 
-fn approx_zero(x : f32) -> bool {
-	x.abs() < ZERO_THRESHOLD
+fn approx_zero<T : Normed>(x : T) -> bool {
+	x.quadrance() < ZERO_THRESHOLD
 }
 
-fn close_to(x : f32, y : f32) -> bool {
+fn close_to<T : Normed + Sub<Output = T>>(x : T, y : T) -> bool {
 	approx_zero(x - y)
 }
 
+pub trait Normed {
+    fn quadrance(&self) -> f32;
+    fn norm(&self) -> f32 {
+    	self.quadrance().sqrt()
+    }
+}
+
+impl Normed for f32 {
+    fn quadrance(&self) -> f32 {
+        self * self
+    }
+}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -87,15 +99,6 @@ impl<const N: usize> Point<N> {
 		self
 	}
 
-	pub fn quadrance(&self) -> f32 {
-		self.into_iter()
-			 .map(|x| x * x)
-			 .sum()
-	}
-
-	pub fn norm(&self) -> f32 {
-		self.quadrance().sqrt()
-	}
 
 	pub fn normalize(self) -> Self {
 		self.scale(self.norm().recip())
@@ -130,6 +133,13 @@ impl<const N: usize> Point<N> {
 	}
 }
 
+impl<const N : usize> Normed for Point<N> {
+	fn quadrance(&self) -> f32 {
+		self.into_iter()
+			 .map(|x| x * x)
+			 .sum()
+	}
+}
 
 impl<const N: usize> IntoIterator for Point<N> {
 	type Item     = f32;
@@ -225,7 +235,7 @@ pub struct Quaternion(V4);
 
 impl Quaternion {
 	pub fn new(values : V4) -> Self {
-		Self(values.normalize())
+		Self(values)
 	}
 	pub fn rotation(axis : V3, angle : f32) -> Self {
 		let axis = axis.normalize();
@@ -235,10 +245,58 @@ impl Quaternion {
 		))
 	}
 
-	pub fn close_to(&self, other : &Self) -> bool {
-		(self.0 - other.0).quadrance() < ZERO_THRESHOLD
+}
+
+impl Normed for Quaternion {
+    fn quadrance(&self) -> f32 {
+        self.0.quadrance()
+    }
+}
+
+impl Add for Quaternion {
+	type Output = Quaternion;
+
+	fn add(mut self, other : Self) -> Self {
+		Self(self.0 + other.0)
 	}
 }
+
+impl AddAssign for Quaternion {
+	fn add_assign(&mut self, other: Self) { 
+		self.0 += other.0;
+	}
+}
+
+impl SubAssign for Quaternion {
+	fn sub_assign(&mut self, other: Self) { 
+		self.0 -= other.0;
+	}
+}
+
+impl Sub for Quaternion {
+	type Output = Quaternion;
+
+	fn sub(mut self, other : Self) -> Self {
+		Self(self.0 - other.0)
+	}
+}
+
+impl Neg for Quaternion {
+	type Output = Quaternion;
+
+	fn neg(mut self) -> Self {
+		Self(- self.0)
+	}
+}
+
+impl PartialEq for Quaternion {
+	fn eq(&self, other: &Self) -> bool { 
+		self.0 == other.0
+	}
+}
+
+impl Eq for Quaternion {}
+
 
 // q1 * q2 is equivalent to ROT2 * ROT1 is matrix settings
 impl Mul<Quaternion> for Quaternion {
@@ -486,6 +544,18 @@ impl<const N : usize> Matrix<N> {
 	}
 }
 
+impl<const N: usize> Normed for Matrix<N> {
+	fn quadrance(&self) -> f32 {
+		let mut to_return = 0.;
+		for i in 0 .. N {
+			for j in 0 .. N {
+				to_return += self.0[i][j] * self.0[i][j];
+			}
+		}
+		to_return
+	}
+}
+
 impl<const N : usize> Add for Matrix<N> {
 	type Output = Matrix<N>;
 
@@ -578,7 +648,7 @@ mod tests {
 
 		println!("Obtained: {:?}", result);
 		println!("Expected: {:?}", expected);
-		assert!(approx_zero((result - expected).norm()));
+		assert!(close_to(result, expected));
 
 		// permutation matrix
 		let matrix = M44::new([
@@ -592,7 +662,7 @@ mod tests {
 		let result   = matrix.apply_homo(&v);
 		let expected = V3::new([4., -2., 3.]);
 
-		assert!(approx_zero((result - expected).norm()));
+		assert!(close_to(result, expected));
 
 
 
@@ -647,12 +717,12 @@ mod tests {
 		let result = rot_matrix.apply_homo(&v);
 		let expected = -V3::E_Z;
 
-		assert!(approx_zero((expected - result).norm()));
+		assert!(close_to(expected, result));
 
 		let v = V3::E_Y;
 		let result = rot_matrix.apply_homo(&v);
 
-		assert!(approx_zero((v - result).norm()));
+		assert!(close_to(v, result));
 	}
 
 
@@ -673,13 +743,13 @@ mod tests {
 		let v = V3::new([0., 0., - clip_near]).homo();
 		let result = norm_screen(projection_matrix.apply(&v));
 		let expected = Point::<4>::new([0., 0., -1., 1.]);
-		assert!(approx_zero((expected - result).norm()));
+		assert!(close_to(expected, result));
 
 		// Something on the clip far plane ought to have Z coordinate 1
 		let v = V3::new([0., 0., - clip_far]).homo();
 		let result = norm_screen(projection_matrix.apply(&v));
 		let expected = Point::<4>::new([0., 0., 1., 1.]);
-		assert!(approx_zero((expected - result).norm()));
+		assert!(close_to(expected, result));
 
 		// when fov = 90°, the tallest I can see is equal to the distance from the eye.
 		let v = V3::new([0., 5., - 5.]).homo();
@@ -705,11 +775,7 @@ mod tests {
 
 
 		let predict_inv_matrix = matrix.inv_ortho_homo();
-		for i in 0 .. 4 {
-			for j in 0 .. 4 {
-				assert!(close_to(expected_inv_matrix.0[i][j], predict_inv_matrix.0[i][j]));
-			}
-		}
+		assert!(close_to(expected_inv_matrix, predict_inv_matrix));
 	}
 
 
@@ -719,14 +785,14 @@ mod tests {
 		let q2 = Quaternion::rotation(V3::E_X, 45_f32.to_radians());
 		let q3 = Quaternion::rotation(V3::E_X, 70_f32.to_radians());
 
-		assert!(q3.close_to(&(q2 * q1)));
+		assert!(close_to(q3, q2 * q1));
 
 		let q1 = Quaternion::rotation(V3::E_X, -90_f32.to_radians());
 		let q2 = Quaternion::rotation(V3::E_Z, 90_f32.to_radians());
 		let q3 = Quaternion::rotation(V3::E_X, 90_f32.to_radians());
 		let q4 = Quaternion::rotation(V3::E_Y, 90_f32.to_radians());
 
-		assert!(q4.close_to(&(q1 * (q2 * q3))));
+		assert!(close_to(q4, q1 * (q2 * q3)));
 	}
 
 	#[test]
