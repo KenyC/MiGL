@@ -245,6 +245,14 @@ impl Quaternion {
 		))
 	}
 
+	pub fn to_matrix(self) -> M33 {
+		let coeffs = self.0.0;
+		Matrix::<3>([
+			[2. * (coeffs[0] * coeffs[0] + coeffs[1] * coeffs[1]) - 1. , 2. * (coeffs[1] * coeffs[2] - coeffs[0] * coeffs[3])      , 2. * (coeffs[1] * coeffs[3] + coeffs[0] * coeffs[2])      ,],
+			[2. * (coeffs[1] * coeffs[2] + coeffs[0] * coeffs[3])      , 2. * (coeffs[0] * coeffs[0] + coeffs[2] * coeffs[2]) - 1. , 2. * (coeffs[2] * coeffs[3] - coeffs[0] * coeffs[1])      ,],
+			[2. * (coeffs[1] * coeffs[3] - coeffs[0] * coeffs[2])      , 2. * (coeffs[2] * coeffs[3] + coeffs[0] * coeffs[1])      , 2. * (coeffs[0] * coeffs[0] + coeffs[3] * coeffs[3]) - 1. ,],
+		])
+	}
 }
 
 impl Normed for Quaternion {
@@ -588,6 +596,7 @@ impl<const N : usize> Sub for Matrix<N> {
 
 #[cfg(test)]
 mod tests {
+	use rand::Rng;
 	use super::*;
 
 	 #[test]
@@ -822,4 +831,37 @@ mod tests {
 		)
 	}
 
+	#[test]
+	fn quaternion_to_mat() {
+		let q1 = Quaternion::rotation(V3::E_X, -90_f32.to_radians());
+		let matrix = M33::new([
+			[1., 0., 0.,],
+			[0., 0., 1.,],
+			[0.,-1., 0.,],
+		]);
+
+		assert!(close_to(q1.to_matrix(), matrix));
+
+		let q1 = Quaternion::rotation(V3::new([1.; 3]), 120_f32.to_radians());
+		let matrix = M33::new([
+			[0., 0., 1.,],
+			[1., 0., 0.,],
+			[0., 1., 0.,],
+		]);
+		println!("{:?} {:?}", q1.clone().to_matrix(), matrix);
+		assert!(close_to(q1.to_matrix(), matrix));
+
+		// axis is a fixed point
+		let mut rng = rand::thread_rng();
+		for _ in 0 .. 20 {
+			let axis = V3::new(rng.gen::<[f32; 3]>());
+			let angle : f32 = rng.gen();
+
+			let q = Quaternion::rotation(axis, angle);
+			let matrix = q.to_matrix();
+
+			let img_axis = matrix.apply(&axis);
+			assert!(close_to(axis, img_axis));
+		}
+	}
 }
