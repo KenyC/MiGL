@@ -19,9 +19,8 @@ pub trait Normed {
 }
 
 impl Normed for f32 {
-    fn quadrance(&self) -> f32 {
-        self * self
-    }
+    fn quadrance(&self) -> f32 { self * self }
+    fn norm(&self) -> f32 { self.abs() }
 }
 
 #[repr(C)]
@@ -411,14 +410,7 @@ impl M44 {
 		      cross_prod_matrix.scale(sin) +
 		      outer_prod_matrix.scale(opcos);
 
-		let mut to_return = M44::id();
-
-		for i in 0 .. 3 {
-			for j in 0 .. 3 {
-				to_return.0[i][j] = non_homo_result.0[i][j];
-			}
-		}
-		to_return
+		non_homo_result.to_homo()
 	}
 
 	pub fn scaling(scale : f32) -> Self {
@@ -512,6 +504,19 @@ impl M44 {
 	}
 }
 
+impl M33 {
+	pub fn to_homo(self) -> M44 {
+		let mut to_return = M44::id();
+		for i in 0 .. 3 {
+			for j in 0 .. 3 {
+				to_return.0[i][j] = self.0[i][j];
+			}
+		}
+		to_return
+	}
+}
+
+
 impl<const N : usize> Matrix<N> {
 
 	pub fn from_row_major(input : &[f32]) -> Self {
@@ -586,6 +591,14 @@ impl<const N : usize> Matrix<N> {
 			for j in 0 .. N {
 				coords[i][j] = self.0[j][i]
 			}
+		}	
+		Self (coords)
+	}
+
+	pub fn diagonal(diag : Point::<N>) -> Self {
+		let mut coords : [[f32; N]; N] = [[0.; N]; N];
+		for i in 0 .. N {
+			coords[i][i] = diag.0[i];
 		}	
 		Self (coords)
 	}
