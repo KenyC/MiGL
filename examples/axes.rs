@@ -31,7 +31,7 @@ pub fn main() {
 
 	let _gl_context = window.gl_create_context().unwrap();
 
-	let mut gl = GLWrap::new(video_subsystem);
+	let gl = GLWrap::new(video_subsystem);
 
 	gl.set_viewport(0, 0, WIDTH as i32, HEIGHT as i32);
 	gl.set_clear_color(0.0, 0.0, 0.0, 1.0);
@@ -50,7 +50,7 @@ pub fn main() {
 	let mut event_pump = sdl_context.event_pump().unwrap();
 
 	'main: loop {
-		'event : for event in event_pump.poll_iter() {
+		for event in event_pump.poll_iter() {
 			match event {
 				Event::Quit {..} |
 				Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {

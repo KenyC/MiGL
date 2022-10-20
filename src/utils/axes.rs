@@ -3,13 +3,12 @@ use crate::GLError;
 use crate::shader::{Shader, Vertex, Fragment};
 use crate::program::{Program, ProgramBuilder, DrawMode};
 use crate::math3d::{V3, M44};
-use crate::buffer::Buffer;
 use crate::uniform::Uniform;
 
 
 #[derive(Debug)]
 pub struct AxesBuilder {
-	buffer:   Buffer<V3>,
+	// buffer:   Buffer<V3>,
 	program:  Program,
 }
 
@@ -51,7 +50,7 @@ impl AxesBuilder {
 		program.uniform("model").unwrap().pass(&model);
 
 		Ok(Self {
-			buffer,
+			// buffer,
 			program,
 		})
 	}

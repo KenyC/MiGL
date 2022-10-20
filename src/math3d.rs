@@ -3,10 +3,12 @@ use std::ops::*;
 
 const ZERO_THRESHOLD : f32 = 1e-5;
 
+#[allow(unused)]
 fn approx_zero<T : Normed>(x : T) -> bool {
 	x.quadrance() < ZERO_THRESHOLD
 }
 
+#[allow(unused)]
 fn close_to<T : Normed + Sub<Output = T>>(x : T, y : T) -> bool {
 	approx_zero(x - y)
 }
@@ -302,7 +304,7 @@ impl Normed for Quaternion {
 impl Add for Quaternion {
 	type Output = Quaternion;
 
-	fn add(mut self, other : Self) -> Self {
+	fn add(self, other : Self) -> Self {
 		Self(self.0 + other.0)
 	}
 }
@@ -322,7 +324,7 @@ impl SubAssign for Quaternion {
 impl Sub for Quaternion {
 	type Output = Quaternion;
 
-	fn sub(mut self, other : Self) -> Self {
+	fn sub(self, other : Self) -> Self {
 		Self(self.0 - other.0)
 	}
 }
@@ -330,7 +332,7 @@ impl Sub for Quaternion {
 impl Neg for Quaternion {
 	type Output = Quaternion;
 
-	fn neg(mut self) -> Self {
+	fn neg(self) -> Self {
 		Self(- self.0)
 	}
 }
@@ -974,8 +976,6 @@ mod tests {
 	#[test]
 	fn test_axis_angle() {
 		let mut rng = rand::thread_rng();
-
-		let q = Quaternion(Point([0.98950016, -0.082994215, -0.07325356, -0.09292575]));
 
 
 		for _ in 0 .. 100 {

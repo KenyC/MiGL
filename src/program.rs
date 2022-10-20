@@ -1,7 +1,7 @@
 use gl::types::*;
 
 
-use crate::attributes;
+
 use crate::buffer::*;
 use crate::uniform::*;
 use crate::shader::*;
@@ -11,7 +11,6 @@ use crate::error::*;
 use crate::log::*;
 
 use std::cell::Cell;
-use std::collections::HashSet;
 use std::ffi::CString;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -356,7 +355,7 @@ impl Program {
 
 	pub fn draw_buffer(&self, mode : DrawMode) -> Result<(), GLError> {
 		if let Some(indices) = &self.indices {
-			self.draw_indexed_buffer(indices);
+			self.draw_indexed_buffer(indices, mode);
 		}
 		else {
 			let n_elems = self.n_elems.get().ok_or(GLError::NoBufferAttached)?;
@@ -365,13 +364,13 @@ impl Program {
 		Ok(())
 	}
 
-	pub fn draw_indexed_buffer(&self, indices : &AnyBuffer) -> () {
+	fn draw_indexed_buffer(&self, indices : &AnyBuffer, mode : DrawMode) -> () {
 		self.bind_texture();
 		unsafe {gl::BindVertexArray(self.vao.0);}
 		unsafe {gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, indices.id().0);}
 		unsafe {
 			gl::DrawElements(
-				DrawMode::Tris.to_gl(), 
+				mode.to_gl(), 
 				indices.n_elems as gl::types::GLsizei, 
 				indices.gpu_info.gl_type.to_opengl_sym(), 
 				std::ptr::null()
@@ -380,7 +379,7 @@ impl Program {
 		self.unbind_texture();
 	}
 
-	pub fn draw_buffer_partial(&self, from : usize, how_many : usize, mode : DrawMode) -> () {
+	fn draw_buffer_partial(&self, from : usize, how_many : usize, mode : DrawMode) -> () {
 		self.bind_texture();
 		unsafe {gl::BindVertexArray(self.vao.0);}
 		unsafe {gl::DrawArrays(mode.to_gl(), from as gl::types::GLint, how_many as gl::types::GLsizei);}

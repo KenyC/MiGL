@@ -92,10 +92,10 @@ pub fn main() {
 	'main: loop {
 		let current_time = timer.ticks();
 		let t  = current_time as f32;
-		let dt = (current_time - old_time) as f32;
+		let _dt = (current_time - old_time) as f32;
 		old_time = current_time;
 
-		'event : for event in event_pump.poll_iter() {
+		for event in event_pump.poll_iter() {
 			match event {
 				Event::Quit {..} |
 				Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {

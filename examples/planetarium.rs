@@ -2,14 +2,12 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use migl::buffer::BufferBld;
-use migl::math3d::Point;
 use migl::program::DrawMode;
 use migl::utils::camera::CylinderCamera;
 use migl::utils::load::ObjLoader;
 use migl::math3d::M44;
 use migl::math3d::V3;
 use migl::program::ProgramBuilder;
-use migl::utils::axes::AxesBuilder;
 use migl::shader::Fragment;
 use migl::shader::Shader;
 use migl::shader::Vertex;
@@ -145,6 +143,7 @@ pub fn main() {
 struct Star {
 	right_ascension : [f32; 3],
 	declination :     [f32; 3],
+	#[allow(unused)]
 	magnitude: f32,
 }
 
@@ -157,7 +156,7 @@ fn load_stars(filepath : &Path) -> Vec<V3> {
 	let mut to_return = Vec::with_capacity(n_stars);
 
 	for stars in stars_map.into_values() {
-		for Star { right_ascension, declination, magnitude } in stars.into_iter() {
+		for Star { right_ascension, declination, .. /*magnitude*/ } in stars.into_iter() {
 			let [hours, minutes, seconds] = right_ascension;
 			let [degrees, arc_minutes, arc_seconds] = declination;
 			let longitude = (hours + (minutes + (seconds / 60.)) / 60.) * (2. * std::f32::consts::PI  / 24.);

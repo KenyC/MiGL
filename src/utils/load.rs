@@ -19,8 +19,8 @@ pub enum ParseErrorKind {
 
 #[derive(Debug)]
 pub struct ParseError {
-	kind : ParseErrorKind,
-	line : Option<usize>,
+	pub kind : ParseErrorKind,
+	pub line : Option<usize>,
 }
 
 impl ParseError {
@@ -197,9 +197,9 @@ impl ObjLoader {
 }
 
 
+#[cfg(test)]
 mod test {
     use crate::{utils::load::{Object, ObjLoader}, math3d::V3};
-
 
 
 	#[test]
