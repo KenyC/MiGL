@@ -230,19 +230,29 @@ impl<const N : usize> Eq for Point<N> {}
 
 // -- QUATERNIONS
 // Unit quaternions
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Quaternion(V4);
 
 impl Quaternion {
 	pub fn new(values : V4) -> Self {
 		Self(values)
 	}
+
 	pub fn rotation(axis : V3, angle : f32) -> Self {
 		let axis = axis.normalize();
 		let (sin, cos) = (0.5 * angle).sin_cos();
 		Self(V4::new(
 			[cos, axis.0[0] * sin, axis.0[1] * sin, axis.0[2] * sin,]
 		))
+	}
+
+	pub fn axis_angle(&self) -> (V3, f32) {
+		let unnormed_axis = V3::from(&self.0.0[1..]);
+		let norm = unnormed_axis.norm();
+		let axis = unnormed_axis.scale(norm.recip());
+		let angle = 2. * norm.atan2(self.0.0[0]);
+
+		(axis, angle)
 	}
 
 	pub fn to_matrix(self) -> M33 {
@@ -253,6 +263,35 @@ impl Quaternion {
 			[2. * (coeffs[1] * coeffs[3] - coeffs[0] * coeffs[2])      , 2. * (coeffs[2] * coeffs[3] + coeffs[0] * coeffs[1])      , 2. * (coeffs[0] * coeffs[0] + coeffs[3] * coeffs[3]) - 1. ,],
 		])
 	}
+
+	pub fn interpolate(q1 : Self, q2 : Self, t : f32) -> Self {
+		let v1 = q1.0.clone();
+		let v2 = q2.0.clone();
+		let cos_angle = (v1.dot(&v2) / (v1.norm() * v2.norm())).abs();
+		let angle = cos_angle.acos();
+
+		let sin_angle = angle.sin();
+
+		// If sin angle is not small, use it
+		// otherwise, do a 1st order approximation
+		if sin_angle > ZERO_THRESHOLD {
+			let sin_t_angle      = (t * angle).sin();
+			let sin_comp_t_angle = ((1. - t) * angle).sin();
+
+			let v1 = q1.0;
+			let v2 = q2.0;
+			Self((v1.scale(sin_comp_t_angle) + v2.scale(sin_t_angle)).scale(sin_angle.recip()))
+		}
+		else {
+			let v1 = q1.0;
+			let v2 = q2.0;
+			Self(v1.scale(t) + v2.scale(1. - t))
+		}
+	}
+
+
+
+	pub const ID : Self = Self(Point::<4>([1.0, 0.0, 0.0, 0.0]));
 }
 
 impl Normed for Quaternion {
@@ -862,6 +901,82 @@ mod tests {
 
 			let img_axis = matrix.apply(&axis);
 			assert!(close_to(axis, img_axis));
+		}
+	}
+
+	#[test]
+	fn quaternion_interpolate() {
+		let mut rng = rand::thread_rng();
+
+		for _ in 0 .. 100 {
+			let axis = V3::new(rng.gen::<[f32; 3]>());
+			let angle : f32 = rng.gen();
+			let q1 = Quaternion::rotation(axis, angle);
+
+
+			// t = 0 and 1 yields the end points
+			let axis = V3::new(rng.gen::<[f32; 3]>());
+			let angle : f32 = rng.gen();
+			let q2 = Quaternion::rotation(axis, angle);
+
+			
+			assert!(close_to(q1, Quaternion::interpolate(q1, q2, 0.)));
+			assert!(close_to(q2, Quaternion::interpolate(q1, q2, 1.)));
+
+			// if end points are equal, interpolation always yields the end point
+			let t : f32 = rng.gen_range(0. .. 1.);
+			let q3 = Quaternion::interpolate(q2, q2, t);
+			assert!(close_to(q2, q3));
+
+			// result remains a rotation
+			let q3 = Quaternion::interpolate(q1, q2, t);
+			assert!(close_to(1., q3.quadrance()));
+
+			// interpolation does not go the "long way"
+			let axis = V3::new(rng.gen::<[f32; 3]>()).normalize();
+			let angle : f32 = rng.gen_range(0_f32 .. 90_f32);
+			let q1 = Quaternion::rotation(axis, angle.to_radians());
+			let angle : f32 = rng.gen_range(0_f32 .. 90_f32);
+			let q2 = Quaternion::rotation(axis, -angle.to_radians());
+
+			let t : f32 = rng.gen_range(0. .. 1.);
+			let q3 = Quaternion::interpolate(q1, q2, t);
+
+
+			let (new_axis, mut new_angle) = q3.axis_angle();
+
+			assert!(close_to(new_axis, axis) || close_to(new_axis, -axis));
+			if !close_to(new_axis, axis) {
+				new_angle = - new_angle;
+			}
+
+			assert!(new_angle < 90_f32.to_radians() && new_angle > -90_f32.to_radians());
+
+			// assert!(angle);
+
+
+		}
+	}
+
+	#[test]
+	fn test_axis_angle() {
+		let mut rng = rand::thread_rng();
+
+		let q = Quaternion(Point([0.98950016, -0.082994215, -0.07325356, -0.09292575]));
+
+
+		for _ in 0 .. 100 {
+			let axis = V3::new(rng.gen::<[f32; 3]>()).normalize();
+			let angle : f32 = rng.gen();
+			let q = Quaternion::rotation(axis, angle);
+
+			let (axis1, angle1) = q.axis_angle();
+
+
+			assert!(
+				   (close_to(axis, axis1) && close_to(angle, angle1) )
+				|| (close_to(axis, axis1.neg())&& close_to(angle, angle1.neg()) )
+			);
 		}
 	}
 }
