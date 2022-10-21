@@ -56,6 +56,11 @@ impl GLWrap {
 		unsafe {gl::LineWidth(w);}
 	}
 
+	pub fn set_point_size(&self, size : f32)
+	{
+		unsafe {gl::PointSize(size);}
+	}
+
 	pub fn set_viewport(&self, x : i32, y : i32, w : i32, h : i32)
 	{
 		unsafe {
