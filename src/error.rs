@@ -18,6 +18,8 @@ pub enum GLError {
 	AttributeNameTooLong,
 	AttributeNameEncodingError,
 	BufferTooSmallForConversion,
+	TooManyTextures,
+	CannotGetMaxTexUnits,
 }
 
 

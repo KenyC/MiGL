@@ -28,7 +28,6 @@ pub struct ProgramBuilder {
 	vert_shader       : Shader<Vertex>,
 	frag_shader       : Shader<Fragment>,
 	maybe_geom_shader : Option<Shader<Geometry>>,
-	maybe_texture     : Option<(String, Texture)>,
 	attributes        : Option<Vec<String>>,
 }
 
@@ -39,16 +38,12 @@ impl ProgramBuilder {
 		) -> Self {
 		Self {
 			maybe_geom_shader : None,
-			maybe_texture     : None,
 			attributes        : None,
 			vert_shader, frag_shader,
 		}
 	}
 
-	pub fn texture(mut self, name : &str, texture : Texture) -> Self {
-		self.maybe_texture = Some((name.to_string(), texture));
-		self
-	}
+
 
 	pub fn geom_shader(mut self, geom_shader : Shader<Geometry>) -> Self {
 		self.maybe_geom_shader = Some(geom_shader);
@@ -80,11 +75,12 @@ pub struct AttributePos(pub gl::types::GLuint);
 pub struct Program {
 	pub id: ProgramId,
 	has_geometry: bool,
-	maybe_texture: Option<Texture>,
+	textures: HashMap<String, (usize, Texture)>,
 	indices : Option<AnyBuffer>,
 	vao: VAOId,
 	n_elems: Cell<Option<usize>>,
 	attributes_loc : Rc<HashMap<String, AttributePos>>,
+	max_n_tex_units : usize,
 }
 
 impl Program {
@@ -97,9 +93,17 @@ impl Program {
 			vert_shader,
 			frag_shader,
 			maybe_geom_shader,
-			maybe_texture,
 			attributes,
 		} = builder;
+
+		// -- Check that number of texture provided is below max (prior to everything)
+		let mut max_n_tex_units : gl::types::GLint = -1;
+		unsafe {gl::GetIntegerv(gl::MAX_COMBINED_TEXTURE_IMAGE_UNITS, &mut max_n_tex_units)};
+		if max_n_tex_units == -1 {
+			return Err(GLError::CannotGetMaxTexUnits)
+		}
+
+
 		let program_id = unsafe {gl::CreateProgram()};
 
 		// -- Attach shaders
@@ -156,16 +160,12 @@ impl Program {
 			has_geometry : maybe_geom_shader.is_some(),
 			vao :  vao_id,
 			attributes_loc : Rc::new(attributes_loc),
-			maybe_texture : None,
+			textures : HashMap::new(),
 			n_elems: Cell::new(None),
 			indices: None,
+			max_n_tex_units : max_n_tex_units.try_into().unwrap(),
 		};
 
-		to_return.maybe_texture = if let Some((name, texture)) = maybe_texture {
-			to_return.uniform::<gl::types::GLint>(&name)?.pass(&0);
-			Some(texture)
-		}
-		else { None };
 
 		Ok(to_return)
 	}
@@ -217,6 +217,22 @@ impl Program {
 		Ok(to_return)
 	}
 
+	pub fn texture(&mut self, name : &str, texture : Texture) -> Result<(), GLError> {
+		let i = match self.textures.get_mut(name) {
+			Some((i, old_texture)) => {
+				*old_texture = texture;
+				*i
+			},
+			None => {
+				let n = self.textures.len();
+				self.textures.insert(name.to_string(), (n, texture));
+				n
+			},
+		};
+		self.uniform(name)?.pass(&(i as gl::types::GLint));
+		Ok(())
+	}
+
 	fn from_attribute_names(id : ProgramId, attribute_names : Vec<String>) -> Result<HashMap<String, AttributePos>, GLError>
 	{
 		let mut to_return = HashMap::new();
@@ -252,11 +268,12 @@ impl Program {
 		return Ok(Self {
 			id: self.id,
 			has_geometry: self.has_geometry,
-			maybe_texture: self.maybe_texture.clone(),
+			textures: self.textures.clone(),
 			vao: vao_id,
 			attributes_loc: self.attributes_loc.clone(),
 			n_elems: Cell::new(None),
     		indices: None,
+    		max_n_tex_units: self.max_n_tex_units,
 		});
 	}
 
@@ -340,17 +357,16 @@ impl Program {
 
 	#[inline]
 	fn bind_texture(&self) {
-		if let Some(texture) = &self.maybe_texture {
-			unsafe {gl::ActiveTexture(gl::TEXTURE0);}
+		for (i, texture) in self.textures.values() {
+			let try_into : gl::types::GLenum = (*i).try_into().unwrap();
+			unsafe {gl::ActiveTexture(gl::TEXTURE0 + try_into);}
 			unsafe {gl::BindTexture(gl::TEXTURE_2D, texture.id.0);}
 		}
 	}
 
 	#[inline]
 	fn unbind_texture(&self) {
-		if let Some(_) = &self.maybe_texture {
-			unsafe {gl::BindTexture(gl::TEXTURE_2D, 0);}
-		}
+		unsafe {gl::BindTexture(gl::TEXTURE_2D, 0);}
 	}
 
 	pub fn draw_buffer(&self, mode : DrawMode) -> Result<(), GLError> {

@@ -53,12 +53,11 @@ pub fn main() {
 	let format_img = ImageFormat::Jpeg;
 	let image = image::load(file, format_img).unwrap();
 	let texture = texture::Texture::new(&image).unwrap();
-	let jug_program =
+	let mut jug_program =
 		ProgramBuilder::new(
 			Shader::<Vertex>::from_file("resources/shaders/textured_diffuse/vert.glsl").unwrap(),
 			Shader::<Fragment>::from_file("resources/shaders/textured_diffuse/frag.glsl").unwrap(),
 		)
-		.texture("texture_img", texture)
 		.build()
 		.unwrap();
 
@@ -74,6 +73,7 @@ pub fn main() {
 	jug_program.bind("position",   jug_buffer.view(field!(vertex))).unwrap();
 	jug_program.bind("normal",     jug_buffer.view(field!(normal))).unwrap();
 	jug_program.bind("tex_coords", jug_buffer.view(field!(tex_coords))).unwrap();
+	jug_program.texture("texture_img", texture).unwrap();
 
 
 	// Creating uniform
