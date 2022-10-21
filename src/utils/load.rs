@@ -5,6 +5,10 @@ use crate::math3d::{V3, V2};
 #[derive(Debug)]
 pub enum UnimplementedFeature {
     NonTriFace,
+    WeightCoordinateOnVertex,
+    TexCoordsNotEqualTo2,
+    FaceWithNoTexture,
+    FaceWithNoNormal,
 }
 
 #[derive(Debug)]
@@ -47,7 +51,7 @@ pub struct VertexNormal {
 
 #[derive(Debug)]
 pub struct Object {
-	face_verts           : Vec<(usize, usize, usize)>,
+	face_verts      : Vec<(usize, usize, usize)>,
 	face_normals    : Vec<(usize, usize, usize)>,
 	face_tex_coords : Vec<(usize, usize, usize)>,
 	normals         : Vec<V3>,
@@ -116,7 +120,11 @@ impl ObjLoader {
 		// this slicing should be kosher as "v " does take two bytes in UTF8
 		let words : Vec<&str> = line[2..].split_ascii_whitespace().collect();
 
-		if words.len() != 3 {
+		let len = words.len();
+		if len == 4 {
+			return Err(ParseError::new(ParseErrorKind::NotSupported(UnimplementedFeature::WeightCoordinateOnVertex), Some(line_no)))
+		}
+		if len != 3 {
 			return Err(ParseError::new(ParseErrorKind::IncorrectNComponents, Some(line_no)));
 		}
 
@@ -166,9 +174,14 @@ impl ObjLoader {
 		// this slicing should be kosher as "vt" does take two bytes in UTF8
 		let words : Vec<&str> = line[2..].split_ascii_whitespace().collect();
 
-		if words.len() != 2 {
+		let len = words.len();
+		if len == 1 || len == 3 {
+			return Err(ParseError::new(ParseErrorKind::NotSupported(UnimplementedFeature::TexCoordsNotEqualTo2), Some(line_no)));
+		}
+		if len != 2 {
 			return Err(ParseError::new(ParseErrorKind::IncorrectNComponents, Some(line_no)));
 		}
+
 
 		let coordinates : Result<Vec<f32>, ParseError> = words
 			.into_iter()
@@ -203,6 +216,7 @@ impl ObjLoader {
 		for i in 0 .. len - 2 {
 			indices.clear();
 			normal_indices.clear();
+			texture_indices.clear();
 			for v in &words[i .. i + 3] {
 				let v = *v;
 				let components : Vec<&str> = v.split('/').collect();
@@ -210,12 +224,21 @@ impl ObjLoader {
 				if components.len() != 3 {
 					return Err(ParseError::new(ParseErrorKind::IncorrectNComponents, Some(line_no)));
 				}
+
 				let vertex_index : usize = components[0].parse().map_err(|_| 
 					ParseError::new(ParseErrorKind::ExpectedInt, Some(line_no))
 				)?;
+
+				if components[1].is_empty() {
+					return Err(ParseError::new(ParseErrorKind::NotSupported(UnimplementedFeature::FaceWithNoTexture), Some(line_no)));
+				}
 				let texture_index : usize = components[1].parse().map_err(|_| 
 					ParseError::new(ParseErrorKind::ExpectedInt, Some(line_no))
 				)?;
+
+				if components[2].is_empty() {
+					return Err(ParseError::new(ParseErrorKind::NotSupported(UnimplementedFeature::FaceWithNoNormal), Some(line_no)));
+				}
 				let normal_index : usize = components[2].parse().map_err(|_| 
 					ParseError::new(ParseErrorKind::ExpectedInt, Some(line_no))
 				)?;
