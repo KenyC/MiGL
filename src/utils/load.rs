@@ -248,7 +248,7 @@ impl ObjLoader {
 			}
 
 
-			object.face_tex_coords.push((texture_indices[0], texture_indices[1], texture_indices[1]));
+			object.face_tex_coords.push((texture_indices[0], texture_indices[1], texture_indices[2]));
 			object.face_verts.push((indices[0], indices[1], indices[2],));
 			object.face_normals.push((normal_indices[0], normal_indices[1], normal_indices[2],));
 		}

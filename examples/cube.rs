@@ -109,7 +109,7 @@ pub fn main() {
 
 
 	let mut camera = CylinderCamera::new();
-	let projection_matrix = M44::perspective_projection(0.1, 50., 90., 1.);
+	let projection_matrix = M44::perspective_projection(0.1, 50., 60., 1.);
 
 
 	let mut event_pump = sdl_context.event_pump().unwrap();

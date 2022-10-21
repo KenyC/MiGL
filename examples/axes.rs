@@ -38,7 +38,7 @@ pub fn main() {
 	gl.set_line_width(5.0);
 
 	// Load program
-	let projection_matrix = M44::perspective_projection(0.1, 50., 90., 1.);
+	let projection_matrix = M44::perspective_projection(0.1, 50., 60., 1.);
 	let axes_builder = AxesBuilder::new().unwrap();
 	let axes1 = axes_builder.axes();
 	let mut axes2 = axes_builder.axes();

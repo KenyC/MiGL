@@ -41,3 +41,8 @@ required-features = ["sdl2", "utils"]
 name = "planetarium"
 path = "examples/planetarium.rs"
 required-features = ["sdl2", "utils"]
+
+[[example]]
+name = "jug"
+path = "examples/jug.rs"
+required-features = ["sdl2", "utils"]

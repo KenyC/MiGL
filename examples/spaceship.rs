@@ -77,7 +77,7 @@ pub fn main() {
 	let p_uniform  = program.uniform("projection").unwrap();
 	let model_matrix    = M44::rotation(&V3::E_X, -90_f32.to_radians()).dot(&M44::scaling(1.0));
 	let model_rotation  = model_matrix.extract_rotation();
-	let projection_matrix = M44::perspective_projection(0.1, 50., 90., 1.);
+	let projection_matrix = M44::perspective_projection(0.1, 50., 60., 1.);
 
 	let axes_builder = AxesBuilder::new().unwrap();
 	let mut axes = axes_builder.axes();

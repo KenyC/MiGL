@@ -32,7 +32,7 @@ pub fn main() {
 	opengl_attr.set_context_version(3, 3);
 	opengl_attr.set_context_profile(GLProfile::Core);
 
-	let window = video_subsystem.window("Spaceship", WIDTH, HEIGHT)
+	let window = video_subsystem.window("Planetarium", WIDTH, HEIGHT)
 		.position_centered()
 		.opengl()
 		.build()
