@@ -77,10 +77,11 @@ pub fn main() {
 
 
 	// Creating uniform
-	jug_program.uniform("ambient_strength").unwrap().pass(&0.1);
-	jug_program.uniform("specular_strength").unwrap().pass(&0.5);
-	jug_program.uniform("light_strength").unwrap().pass(&1.0);
-	jug_program.uniform("light_direction").unwrap().pass(&(V3::new([-1.0, 1.0, -1.0]).normalize()));
+	jug_program.uniform("ambient_strength").unwrap().pass(&0.3);
+	jug_program.uniform("specular_strength").unwrap().pass(&0.3);
+	jug_program.uniform("diffuse_strength").unwrap().pass(&1.0);
+	jug_program.uniform("light_strength").unwrap().pass(&0.8);
+	jug_program.uniform("light_direction").unwrap().pass(&(V3::new([1.0, -1.0, 1.0]).normalize()));
 	let camera_pos_uniform = jug_program.uniform("camera_pos").unwrap();
 
 

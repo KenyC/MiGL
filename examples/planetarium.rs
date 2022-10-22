@@ -87,8 +87,9 @@ pub fn main() {
 	// Creating uniform
 	character_program.uniform("ambient_strength").unwrap().pass(&0.1);
 	character_program.uniform("specular_strength").unwrap().pass(&0.5);
+	character_program.uniform("diffuse_strength").unwrap().pass(&0.5);
 	character_program.uniform("light_strength").unwrap().pass(&1.0);
-	character_program.uniform("light_direction").unwrap().pass(&(V3::new([-1.0, 1.0, -1.0]).normalize()));
+	character_program.uniform("light_direction").unwrap().pass(&(V3::new([-1.0, -1.0, 1.0]).normalize()));
 	let camera_pos_uniform = character_program.uniform("camera_pos").unwrap();
 
 
