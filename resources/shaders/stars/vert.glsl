@@ -12,5 +12,5 @@ void main()
     vec3 orientation = vec3(view_projection[0][3], view_projection[1][3], view_projection[2][3]);
     float val = dot(orientation, position);
     gl_Position = vec4(rot_matrix * position, val);
-    gl_Position.z = val - 0.001;
+    gl_Position.z = val - 0.00001;
 }

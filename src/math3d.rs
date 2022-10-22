@@ -489,6 +489,33 @@ impl M44 {
 		}
 		to_return
 	}
+
+	pub fn from_rotation_translation(rotation : &M33, translation : &V3) -> Self {
+		let mut to_return = Self::id();
+
+		for i in 0 .. 3 {
+			to_return.0[i][3] = translation.0[i];
+			for j in 0 .. 3 {
+				to_return.0[i][j] = rotation.0[i][j];
+			}
+		}
+
+		to_return
+	}
+
+	pub fn set_rotation(&mut self, rotation : &M33) {
+		for i in 0 .. 3 {
+			for j in 0 .. 3 {
+				self.0[i][j] = rotation.0[i][j];
+			}
+		}
+	}
+
+	pub fn set_translation(&mut self, translation : &V3) {
+		for i in 0 .. 3 {
+			self.0[i][3] = translation.0[i];
+		}
+	}
 }
 
 impl M33 {

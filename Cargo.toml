@@ -46,3 +46,8 @@ required-features = ["sdl2", "utils"]
 name = "jug"
 path = "examples/jug.rs"
 required-features = ["sdl2", "utils"]
+
+[[example]]
+name = "turntable"
+path = "examples/turntable.rs"
+required-features = ["sdl2", "utils"]
