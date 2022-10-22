@@ -76,13 +76,7 @@ impl<const N: usize> Point<N> {
 	}
 
 	pub fn from(from_coords : &[f32]) -> Self {
-		let mut coords = [0.; N];
-
-		for i in 0 .. N {
-			coords[i] = from_coords[i];
-		}
-
-		Self(coords)
+		Self(from_coords[..N].try_into().expect("incorrect length for slice"))
 	}
 
 
@@ -101,36 +95,41 @@ impl<const N: usize> Point<N> {
 	}
 
 
+	pub fn unit_norm(self) -> (Self, f32) {
+		let norm = self.norm();
+		(self.scale(norm.recip()), norm)
+	}
+
 	pub fn normalize(self) -> Self {
-		self.scale(self.norm().recip())
+		self.unit_norm().0
 	}
 
 	pub fn from_le_bytes(bytes : &[u8]) -> Self {
-		let mut to_return = [0.; N];
+		let mut to_return = Self::ZERO;
 
 		let iterator =
 			bytes
 				.chunks(std::mem::size_of::<f32>())
 				.map(|s| f32::from_le_bytes(s.try_into().unwrap()));
 		for (i, x) in iterator.enumerate().take(N) {
-			to_return[i] = x;
+			to_return.0[i] = x;
 		}
 
-		Self(to_return)
+		to_return
 	}
 
 	pub fn from_be_bytes(bytes : &[u8]) -> Self {
-		let mut to_return = [0.; N];
+		let mut to_return = Self::ZERO;
 
 		let iterator =
 			bytes
 				.chunks(std::mem::size_of::<f32>())
 				.map(|s| f32::from_be_bytes(s.try_into().unwrap()));
 		for (i, x) in iterator.enumerate().take(N) {
-			to_return[i] = x;
+			to_return.0[i] = x;
 		}
 
-		Self(to_return)
+		to_return
 	}
 }
 
@@ -390,29 +389,7 @@ impl M44 {
 	}
 
 	pub fn rotation(axis : &V3, angle : f32) -> Self {
-		let axis = axis. normalize();
-		let (sin, cos) = angle.sin_cos();
-		let opcos      = 1. -  cos;
-		let [x, y, z]  = axis.0;
-
-		let cross_prod_matrix = M33::new([
-			[0., -z, y],
-			[z,  0., -x],
-			[-y, x,  0.],
-		]);
-
-		let outer_prod_matrix = M33::new([
-			[x * x, y * x, z * x],
-			[x * y, y * y, z * y],
-			[x * z, y * z, z * z],
-		]);
-
-		let non_homo_result = 
-		      M33::id().scale(cos) +
-		      cross_prod_matrix.scale(sin) +
-		      outer_prod_matrix.scale(opcos);
-
-		non_homo_result.to_homo()
+		M33::rotation(axis, angle).to_homo()
 	}
 
 	pub fn scaling(scale : f32) -> Self {
@@ -459,15 +436,15 @@ impl M44 {
 	} 
 
 	pub fn apply_homo(&self, v : &V3) -> V3 {
-		let mut coords = [0.; 3];
+		let mut coords = V3::ZERO;
 		for i in 0 .. 3 {
-			coords[i] = 
+			coords.0[i] = 
 				v.0[0] * self.0[i][0] + 
 				v.0[1] * self.0[i][1] + 
 				v.0[2] * self.0[i][2] + 
 				self.0[i][3]  
 		}
-		V3::new(coords)
+		coords
 	} 
 
 	pub fn inv_ortho_homo(&self) -> Self {
@@ -496,17 +473,48 @@ impl M44 {
 
 
 	pub fn extract_rotation(&self) -> M33 {
-		let mut to_return : [[f32; 3]; 3] = [[0.0; 3]; 3];
+		let mut to_return : M33 = M33::ZERO;
 		for i in 0 .. 3 {
 			for j in 0 .. 3 {
-				to_return[i][j] = self.0[i][j];
+				to_return.0[i][j] = self.0[i][j];
 			}
 		}
-		M33::new(to_return)
+		to_return
+	}
+
+	pub fn extract_translation(&self) -> V3 {
+		let mut to_return : V3 = V3::ZERO;
+		for i in 0 .. 3 {
+			to_return.0[i] = self.0[i][3];
+		}
+		to_return
 	}
 }
 
 impl M33 {
+	pub fn rotation(axis : &V3, angle : f32) -> Self {
+		let axis = axis. normalize();
+		let (sin, cos) = angle.sin_cos();
+		let opcos      = 1. -  cos;
+		let [x, y, z]  = axis.0;
+
+		let cross_prod_matrix = M33::new([
+			[0., -z, y],
+			[z,  0., -x],
+			[-y, x,  0.],
+		]);
+
+		let outer_prod_matrix = M33::new([
+			[x * x, y * x, z * x],
+			[x * y, y * y, z * y],
+			[x * z, y * z, z * z],
+		]);
+
+		M33::id().scale(cos) +
+		cross_prod_matrix.scale(sin) +
+		outer_prod_matrix.scale(opcos)
+	}
+
 	pub fn to_homo(self) -> M44 {
 		let mut to_return = M44::id();
 		for i in 0 .. 3 {
@@ -520,25 +528,26 @@ impl M33 {
 
 
 impl<const N : usize> Matrix<N> {
+	pub const ZERO : Self = Self([[0.; N]; N]);
 
 	pub fn from_row_major(input : &[f32]) -> Self {
-		let mut coords : [[f32; N]; N] = [[0.; N]; N];
+		let mut to_return : Self = Self::ZERO;
 		for i in 0 .. N {
 			for j in 0 .. N {
-				coords[i][j] = input[i * N + j];
+				to_return.0[i][j] = input[i * N + j];
 			}
 		}
-		Self (coords)
+		to_return
 	}
 
 	pub fn from_col_major(input : &[f32]) -> Self {
-		let mut coords : [[f32; N]; N] = [[0.; N]; N];
+		let mut to_return : Self = Self::ZERO;
 		for i in 0 .. N {
 			for j in 0 .. N {
-				coords[i][j] = input[j * N + i];
+				to_return.0[i][j] = input[j * N + i];
 			}
 		}
-		Self (coords)
+		to_return
 	}
 
 	pub fn new(coords: [[f32; N]; N]) -> Self {
@@ -546,13 +555,13 @@ impl<const N : usize> Matrix<N> {
 	}
 
 	pub fn apply(&self, v : &Point<N>) -> Point<N> {
-		let mut coords = [0.; N];
+		let mut to_return = Point::ZERO;
 		for i in 0 .. N {
 			for j in 0 .. N {
-				coords[i] += v.0[j] * self.0[i][j];
+				to_return.0[i] += v.0[j] * self.0[i][j];
 			}
 		}
-		Point::<N> (coords)
+		to_return
 	} 
 
 
@@ -567,42 +576,42 @@ impl<const N : usize> Matrix<N> {
 
 
 	pub fn dot(self, other : &Self) -> Self {
-		let mut coords : [[f32; N]; N] = [[0.; N]; N];
+		let mut to_return : Self = Self::ZERO;
 		for i in 0 .. N {
 			for j in 0 .. N {
 				for k in 0 .. N {
-					coords[i][j] += self.0[i][k] * other.0[k][j]
+					to_return.0[i][j] += self.0[i][k] * other.0[k][j]
 				}
 			}
 		}
-		Self (coords)
+		to_return
 	}
 
 
 	pub fn id() -> Self {
-		let mut coords : [[f32; N]; N] = [[0.; N]; N];
+		let mut to_return = Self::ZERO;
 		for i in 0 .. N {
-			coords[i][i] = 1.
+			to_return.0[i][i] = 1.
 		}
-		Self (coords)
+		to_return
 	}
 
 	pub fn transpose(&self) -> Self {
-		let mut coords : [[f32; N]; N] = [[0.; N]; N];
+		let mut to_return = Self::ZERO;
 		for i in 0 .. N {
 			for j in 0 .. N {
-				coords[i][j] = self.0[j][i]
+				to_return.0[i][j] = self.0[j][i]
 			}
 		}	
-		Self (coords)
+		to_return
 	}
 
 	pub fn diagonal(diag : Point::<N>) -> Self {
-		let mut coords : [[f32; N]; N] = [[0.; N]; N];
+		let mut to_return = Self::ZERO;
 		for i in 0 .. N {
-			coords[i][i] = diag.0[i];
+			to_return.0[i][i] = diag.0[i];
 		}	
-		Self (coords)
+		to_return
 	}
 }
 
@@ -788,6 +797,16 @@ mod tests {
 		assert!(close_to(v, result));
 	}
 
+	#[test]
+	fn vec_from_slice() {
+		let s = &[1.0, 2.0, 3.0, 4.0];
+		let v = V3::from(s);
+		assert_eq!(v, V3::new([1.0, 2.0, 3.0]));
+
+		let s = &[1.0, 2.0, 3.0];
+		let v = V3::from(s);
+		assert_eq!(v, V3::new([1.0, 2.0, 3.0]));
+	}
 
 	#[test]
 	fn perspective_invariants() {
