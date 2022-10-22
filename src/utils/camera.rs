@@ -118,6 +118,12 @@ impl TurntableCamera {
     	Self { view_matrix, orbit_speed, center, start_drag : None, zoom_speed, dist_to_center } 
     }
 
+    pub fn pos_camera(&self) -> V3 {
+    	let view_rotation = self.view_matrix.extract_rotation();
+    	let view_translation = - self.view_matrix.extract_translation();
+    	view_rotation.transpose().apply(&view_translation)
+    }
+
     pub fn zoom(&mut self, factor : f32) {
     	// TODO : how should zooming and orbiting interact ?
     	// For now, let's forbid such interactions from happening

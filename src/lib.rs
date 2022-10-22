@@ -68,6 +68,11 @@ impl GLWrap {
 		}
 	}
 
+	pub fn enable_program_point_size(&self) 
+	{
+		unsafe {gl::Enable(gl::PROGRAM_POINT_SIZE); }
+	}
+
 	pub fn clear(&self)
 	{
 		unsafe {
