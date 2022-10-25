@@ -14,7 +14,8 @@ uniform float  diffuse_strength;
 uniform float  light_strength;
 uniform vec3   camera_pos;
 
-uniform sampler2D texture_img;
+uniform sampler2D diffuse_texture;
+uniform sampler2D roughness_texture;
 
 void main()
 {   
@@ -36,8 +37,9 @@ void main()
     vec3 f_pt_to_camera = camera_pos - vec3(world_position);
     vec3 dir_pt_to_camera = normalize(f_pt_to_camera);
 
-    intensity += pow(max(dot(reflected_light_dir, dir_pt_to_camera), 0.0), 16) * specular_strength * light_strength;
+    float roughness = texture(roughness_texture, f_tex_coords).r;
+    intensity += pow(max(dot(reflected_light_dir, dir_pt_to_camera), 0.0), roughness * 32)  * specular_strength * light_strength;
     // intensity += pow(max(dot(reflected_light_dir, dir_pt_to_camera), 0.0), 32) * specular_strength * light_strength * 0.001;
 
-    color = vec4(intensity * vec3(texture(texture_img, f_tex_coords)), 1.0f);
+    color = vec4(intensity * vec3(texture(diffuse_texture, f_tex_coords)), 1.0f);
 }

@@ -4,6 +4,7 @@ use std::path::Path;
 use image::ImageFormat;
 use migl::buffer::BufferBld;
 use migl::program::DrawMode;
+use migl::texture::TexFormat;
 use migl::utils::camera::CylinderCamera;
 use migl::utils::load::ObjLoader;
 use migl::math3d::M44;
@@ -49,14 +50,10 @@ pub fn main() {
 	gl.set_line_width(5.0);
 
 	// Load program
-	let file = std::io::BufReader::new(std::fs::File::open("resources/model/jug/textures/jug_01_diff_256.jpg").unwrap());
-	let format_img = ImageFormat::Jpeg;
-	let image = image::load(file, format_img).unwrap();
-	let texture = texture::Texture::new(&image).unwrap();
 	let mut jug_program =
 		ProgramBuilder::new(
-			Shader::<Vertex>::from_file("resources/shaders/textured_diffuse/vert.glsl").unwrap(),
-			Shader::<Fragment>::from_file("resources/shaders/textured_diffuse/frag.glsl").unwrap(),
+			Shader::<Vertex>::from_file("resources/shaders/jug/vert.glsl").unwrap(),
+			Shader::<Fragment>::from_file("resources/shaders/jug/frag.glsl").unwrap(),
 		)
 		.build()
 		.unwrap();
@@ -73,7 +70,18 @@ pub fn main() {
 	jug_program.bind("position",   jug_buffer.view(field!(vertex))).unwrap();
 	jug_program.bind("normal",     jug_buffer.view(field!(normal))).unwrap();
 	jug_program.bind("tex_coords", jug_buffer.view(field!(tex_coords))).unwrap();
-	jug_program.texture("texture_img", texture).unwrap();
+
+	// textures
+	let file = std::io::BufReader::new(std::fs::File::open("resources/model/jug/textures/diffuse.jpg").unwrap());
+	let format_img = ImageFormat::Jpeg;
+	let image = image::load(file, format_img).unwrap();
+	let diffuse_texture = texture::Texture::new(&image).unwrap();
+	jug_program.texture("diffuse_texture", diffuse_texture).unwrap();
+
+	let file = std::io::BufReader::new(std::fs::File::open("resources/model/jug/textures/roughness.jpg").unwrap());
+	let image = image::load(file, format_img).unwrap();
+	let rougness_texture = texture::Texture::new_stored_as(&image, TexFormat::Monochrome).unwrap();
+	jug_program.texture("roughness_texture", rougness_texture).unwrap();
 
 
 	// Creating uniform
