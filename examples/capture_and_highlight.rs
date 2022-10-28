@@ -5,6 +5,8 @@ use migl::attributes::GLType;
 use migl::buffer::BufferBld;
 use migl::frame::FrameBufferBuilder;
 use migl::math3d::Point;
+use migl::math3d::V2;
+use migl::program::DrawMode;
 use migl::texture::TexFormat;
 use migl::texture::Texture;
 use migl::uniform::Uniform;
@@ -60,6 +62,8 @@ pub fn main() {
 	let mvp_uniform : Uniform<M44> = program.uniform("mvp").unwrap();
 
 
+
+
 	// 1st organization : (PPP) (CCC)
 	let buffer_vertices =
 		BufferBld::array()
@@ -94,6 +98,22 @@ pub fn main() {
 	let path = std::env::temp_dir().join(Path::new("test.jpg"));
 
 
+	let mut blur_program =
+		ProgramBuilder::new(
+			Shader::<Vertex>::from_file("resources/shaders/blur/vert.glsl").unwrap(), 
+			Shader::<Fragment>::from_file("resources/shaders/blur/frag.glsl").unwrap(), 
+		)
+		.build()
+		.unwrap();
+	blur_program.texture("scene_texture", color_texture.clone()).unwrap();
+	let position_buffer =
+		BufferBld::array()
+		.r#static()
+		.data(&[V2::new([-1., -1.]), V2::new([-1., 1.]), V2::new([1., -1.]), V2::new([1., 1.]),])
+		.unwrap();
+	blur_program.bind("position", position_buffer.direct_view()).unwrap();
+
+
 
 	let mut camera = CylinderCamera::new();
 	let projection_matrix = M44::perspective_projection(0.1, 50., 60., 1.);
@@ -101,6 +121,7 @@ pub fn main() {
 
 
 	let mut event_pump = sdl_context.event_pump().unwrap();
+	let mut blur = false;
 
 	'main: loop {
 		let mut mvp = projection_matrix.dot(&camera.matrix());
@@ -116,7 +137,7 @@ pub fn main() {
 					frame_buffer.make_current();
 					gl.clear();
 
-					program.draw_buffer(program::DrawMode::Tris).unwrap();
+					program.draw_buffer(DrawMode::Tris).unwrap();
 
 					color_texture
 						.to_image(GLType::Ubyte)
@@ -128,15 +149,31 @@ pub fn main() {
 
 					gl.default_framebuffer().make_current();
 				},
+				Event::KeyDown { keycode: Some(Keycode::B), .. } => {
+					blur = !blur;
+				},
 				event => {
 					camera.control(&event, 10.);
 				},
 			}
 		}
 
-		gl.clear();
+		if blur {
+			frame_buffer.make_current();
+		}
 
-		program.draw_buffer(program::DrawMode::Tris).unwrap();
+		gl.clear();
+		program.set_current();
+		program.draw_buffer(DrawMode::Tris).unwrap();
+
+
+		if blur {
+			gl.default_framebuffer().make_current();
+			gl.clear();
+
+			blur_program.set_current();
+			blur_program.draw_buffer(DrawMode::TriStrip).unwrap();
+		}
 
 
 		window.gl_swap_window();
