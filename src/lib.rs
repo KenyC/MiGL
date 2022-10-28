@@ -6,6 +6,7 @@ pub mod utils;
 pub mod attributes;
 pub mod program;
 pub mod uniform;
+pub mod frame;
 pub mod buffer;
 pub mod error;
 pub mod math3d;
@@ -13,11 +14,13 @@ pub mod math3d;
 extern crate gl;
 
 use crate::error::*;
+use frame::{FrameBuffer, FrameBufferId};
 
 
 #[derive(Debug)]
 pub struct GLWrap {
 	next_free_uniform_binding_pt : UniformBindingPoint,
+	default_framebuffer : FrameBuffer,
 }
 
 
@@ -34,14 +37,9 @@ impl GLWrap {
 	where F : FnMut(&'static str) -> *const std::os::raw::c_void
 	{
 		gl::load_with(loadfn);
-		unsafe {
-			gl::DepthFunc(gl::LESS);
-			gl::Enable(gl::DEPTH_TEST);
-			// gl::Enable(gl::TEXTURE_2D);
-			// gl::Enable(gl::MULTISAMPLE);  
-		}
+		Self::enable_depth();
 		let next_free_uniform_binding_pt = UniformBindingPoint(0);
-		Self {next_free_uniform_binding_pt}
+		Self {next_free_uniform_binding_pt, default_framebuffer: FrameBuffer::default() }
 	}
 
 	pub fn set_clear_color(&self, r : f32, g : f32, b : f32, a : f32)
@@ -87,8 +85,16 @@ impl GLWrap {
 		UniformBindingPoint(id)
 	}
 
+	pub fn default_framebuffer(&self) -> &FrameBuffer { &self.default_framebuffer }
 
+	pub fn enable_depth() {
+		unsafe {
+			gl::DepthFunc(gl::LESS);
+			gl::Enable(gl::DEPTH_TEST);
+		}
+	}
 }
+
 
 
 #[derive(Debug)]

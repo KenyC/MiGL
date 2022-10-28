@@ -51,3 +51,8 @@ required-features = ["sdl2", "utils"]
 name = "turntable"
 path = "examples/turntable.rs"
 required-features = ["sdl2", "utils"]
+
+[[example]]
+name = "capture"
+path = "examples/capture_and_highlight.rs"
+required-features = ["sdl2", "utils"]

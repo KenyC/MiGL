@@ -80,7 +80,7 @@ pub fn main() {
 
 	let file = std::io::BufReader::new(std::fs::File::open("resources/model/jug/textures/roughness.jpg").unwrap());
 	let image = image::load(file, format_img).unwrap();
-	let rougness_texture = texture::Texture::new_stored_as(&image, TexFormat::Monochrome).unwrap();
+	let rougness_texture = texture::Texture::new_stored_as(&image, TexFormat::Monochrome, None).unwrap();
 	jug_program.texture("roughness_texture", rougness_texture).unwrap();
 
 
