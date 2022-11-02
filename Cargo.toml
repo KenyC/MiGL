@@ -54,5 +54,5 @@ required-features = ["sdl2", "utils"]
 
 [[example]]
 name = "capture"
-path = "examples/capture_and_highlight.rs"
+path = "examples/capture_and_blur.rs"
 required-features = ["sdl2", "utils"]
