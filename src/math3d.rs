@@ -1,5 +1,5 @@
 use std::ops::*;
-
+use std::iter::Sum;
 
 const ZERO_THRESHOLD : f32 = 1e-5;
 
@@ -44,6 +44,11 @@ impl Point<2> {
 	pub fn angle(angle : f32) -> Self {
 		let (y, x) = angle.sin_cos();
 		Self([x, y])
+	}
+
+
+	pub fn vec(&self, other : &Self) -> f32 {
+		self.0[0] * other.0[1] - self.0[1] * other.0[0]
 	}
 
 }
@@ -138,6 +143,16 @@ impl<const N : usize> Normed for Point<N> {
 		self.into_iter()
 			 .map(|x| x * x)
 			 .sum()
+	}
+}
+
+impl<const N : usize> Sum for Point<N> {
+	fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+		let mut sum = Point::<N>::ZERO;
+		for v in iter {
+			sum += v;
+		}
+		sum
 	}
 }
 
@@ -654,6 +669,18 @@ impl<const N: usize> Normed for Matrix<N> {
 	}
 }
 
+impl<const N : usize> Sum for Matrix<N> {
+	fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+		let mut sum = Matrix::<N>::ZERO;
+		for v in iter {
+			sum += v;
+		}
+		sum
+	}
+}
+
+
+
 impl<const N : usize> Add for Matrix<N> {
 	type Output = Matrix<N>;
 
@@ -677,6 +704,26 @@ impl<const N : usize> Sub for Matrix<N> {
 			}
 		}
 		Self(self.0)
+	}
+}
+
+impl<const N : usize> AddAssign for Matrix<N> {
+	fn add_assign(&mut self, other: Self) {
+		for i in 0 .. N {
+			for j in 0 .. N {
+				self.0[i][j] += other.0[i][j]
+			}
+		}
+	}
+}
+
+impl<const N : usize> SubAssign for Matrix<N> {
+	fn sub_assign(&mut self, other: Self) {
+		for i in 0 .. N {
+			for j in 0 .. N {
+				self.0[i][j] -= other.0[i][j]
+			}
+		}
 	}
 }
 
