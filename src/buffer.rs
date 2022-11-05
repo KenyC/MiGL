@@ -102,6 +102,15 @@ impl BufferBld {
 		})
 	}
 
+	pub fn allocate<A>(self, n_elems : usize) -> Result<Buffer<A>, GLError> {
+		let raw_buffer = self.allocate_raw(n_elems * std::mem::size_of::<A>())?;
+		Ok(Buffer {
+			raw: raw_buffer,
+			n_elems : 0,
+			_phantom: std::marker::PhantomData,
+		})
+	}
+
 	pub fn data_any<A>(self, data : &[A], n_elems : usize, gpu_info : GPUInfo) -> Result<AnyBuffer, GLError>
 	{
 		let raw_buffer = self.data_raw(data)?;
@@ -115,6 +124,11 @@ impl BufferBld {
 	pub fn data_raw<A>(self, data : &[A]) -> Result<RawBuffer, GLError>
 	{
 		RawBuffer::from_data(self.update, self.kind, data)
+	}
+
+	pub fn allocate_raw(self, n : usize) -> Result<RawBuffer, GLError>
+	{
+		RawBuffer::from_null(self.update, self.kind, n)
 	}
 }
 
@@ -160,6 +174,41 @@ impl RawBuffer {
 		})
 	}
 
+	fn from_null(
+		update  : UpdateKind,
+		kind    : BufferKind,
+		size    : usize,
+	) -> Result<Self, GLError>
+	{
+		let mut buffer_id = 0;
+		unsafe {
+			gl::GenBuffers(1, &mut buffer_id);
+		}
+		if buffer_id == 0 {
+			return Err(GLError::CouldNotCreateBuffer);
+		}
+
+		unsafe {
+			gl::BindBuffer(kind.cst(), buffer_id)
+		}
+
+		unsafe {
+			gl::BufferData(
+				kind.cst(),
+				size as gl::types::GLsizeiptr,
+				std::ptr::null(),
+				update.cst(),
+			)
+		}
+		unsafe {
+			gl::BindBuffer(kind.cst(), 0)
+		}
+		Ok(RawBuffer {
+			id: BufferId(buffer_id),
+			kind,
+		})
+	}
+
 	pub fn view(&self, n_elems : usize, stride : Option<usize>, offset : usize, gpu_type : GPUInfo) -> BufferView {
 		BufferView { 
 			buffer_id: self.id,
@@ -178,6 +227,7 @@ impl RawBuffer {
 	{
 		AnyBuffer { gpu_info : gpu_type, n_elems, raw: self }
 	}
+
 }
 
 #[derive(Debug, Clone)]
@@ -255,6 +305,17 @@ impl<A> Buffer<A> {
 		unsafe {
 			gl::BindBuffer(self.raw.kind.cst(), 0)
 		}
+	}
+
+
+
+	pub fn pass_data(
+		&mut self,
+		data : &[A],
+	) 
+	{
+		self.replace_data(0, data);
+		self.n_elems = data.len();
 	}
 
 

@@ -56,3 +56,8 @@ required-features = ["sdl2", "utils"]
 name = "capture"
 path = "examples/capture_and_blur.rs"
 required-features = ["sdl2", "utils"]
+
+[[example]]
+name = "dynamic_blob"
+path = "examples/dynamic_blob.rs"
+required-features = ["sdl2", "utils"]
